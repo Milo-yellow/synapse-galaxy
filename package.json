@@ -1,0 +1,11 @@
+{
+  "name": "synapse-galaxy",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

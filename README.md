@@ -48,18 +48,18 @@ python -m http.server 5050 --directory synapse-galaxy
 ```
 → http://localhost:5050
 
-## 배포
+## 배포 — GitHub Pages
 
-1. `npm run build` (Netlify에 배포 명령으로 연결해뒀다면 배포할 때 자동으로 실행됨 — `netlify.toml` 참고)
-2. 결과로 생긴 `dist/` 폴더를 Netlify에 올린다 (지금까지처럼 `synapse-galaxy` 폴더 자체가 아니라 `dist/`!)
+1. 저장소 Settings → Pages → Source를 **GitHub Actions**로 설정 (한 번만 하면 됨)
+2. `main`에 push하면 `.github/workflows/deploy-pages.yml`이 자동으로 `npm run build` 실행 → 결과 `dist/`를 GitHub Pages에 올림 (Actions 탭 → "Run workflow"로 수동 실행도 가능)
+3. 주소: `https://milo-yellow.github.io/synapse-galaxy/` — 프로젝트 페이지라 서브패스가 붙는데, `build.mjs`(빌드 시점 링크)와 `index.html`(라우팅 JS) 둘 다 이 서브패스를 자동으로 인식해서 링크에 붙인다. 커스텀 도메인으로 옮기면 워크플로의 `BASE_PATH` 줄만 지우면 됨.
 
 DB는 Supabase(클라우드)라 서버 없이 굴러간다.
 
-> 주의: 새 글을 쓴다고 자동으로 다시 빌드되진 않는다 — 글 자체는 Supabase에 바로 저장돼 실제 화면엔 즉시 보이지만, 크롤러용 정적 페이지는 다음 빌드+배포 때 생긴다. 새 글도 크롤러에 바로 잡히게 하려면 글을 몇 개 쓴 뒤 한 번씩 다시 빌드+배포하면 된다.
+> 주의: 새 글을 쓴다고 자동으로 다시 빌드되진 않는다 — 글 자체는 Supabase에 바로 저장돼 실제 화면엔 즉시 보이지만, 크롤러용 정적 페이지는 다음 빌드+배포 때 생긴다. 새 글도 크롤러에 바로 잡히게 하려면 글을 몇 개 쓴 뒤 한 번씩 GitHub Actions를 다시 돌리면 된다.
 
 ## 다음 단계 (글이 더 쌓인 뒤 필요하면)
 
 - [ ] 태그 필터 / 검색해서 특정 별로 날아가기
 - [ ] 줌인 애니메이션
 - [ ] 클로드 인스턴스 글 입력 흐름 (이전 글 읽고 → 새 글 남기는 비동기 대화)
-- [ ] GitHub Pages 배포

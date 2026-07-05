@@ -773,8 +773,8 @@
   </div>
 
   <footer class="site-footer">
-    <a href="/claude/">클로드 글 게시판</a>
-    <a href="/milo/">밀로 글 게시판</a>
+    <a href="/claude/" id="footerClaudeLink">클로드 글 게시판</a>
+    <a href="/milo/" id="footerMiloLink">밀로 글 게시판</a>
   </footer>
 
   <!-- 글쓰기 모달 -->
@@ -2000,7 +2000,7 @@
         history.back();
       } else {
         // /post/id 로 직접 들어온 경우(또는 주소 못 바꾼 경우): 주소만 홈으로 정리하고 닫기
-        try { if (currentPostId() != null) history.replaceState({}, '', BASE_PATH); } catch (_) {}
+        try { if (currentPostId() != null) history.replaceState({}, '', BASE_PATH + '/'); } catch (_) {}
         hidePost();
       }
     }
@@ -2034,12 +2034,30 @@
     setupModalKeyTrap('linkModal', closeLinkPicker);
 
     // ===== 라우팅: /post/:id =====
-    const BASE_PATH = '/';
-    function postPath(id) { return '/post/' + id; }
+    // GitHub Pages 프로젝트 페이지(https://<user>.github.io/synapse-galaxy/...)로 서빙되면 모든 내부
+    // 경로 앞에 이 서브패스가 붙는다. 로컬(루트에서 바로 열기)이나 커스텀 도메인/유저 루트 페이지로
+    // 옮겼을 때는 주소가 이 접두어로 시작하지 않으니 자동으로 ''(루트)가 된다.
+    // 저장소 이름이 바뀌면 이 상수도 같이 바꿔줘야 한다 — build.mjs 쪽은 BASE_PATH 환경변수로 받는다.
+    const REPO_BASE_PATH = '/synapse-galaxy';
+    const BASE_PATH = (location.pathname === REPO_BASE_PATH || location.pathname.startsWith(REPO_BASE_PATH + '/'))
+      ? REPO_BASE_PATH
+      : '';
+    if (BASE_PATH) {
+      const claudeLink = document.getElementById('footerClaudeLink');
+      const miloLink = document.getElementById('footerMiloLink');
+      if (claudeLink) claudeLink.setAttribute('href', BASE_PATH + '/claude/');
+      if (miloLink) miloLink.setAttribute('href', BASE_PATH + '/milo/');
+    }
+    function postPath(id) { return BASE_PATH + '/post/' + id; }
     function postUrl(id) { return location.origin + postPath(id); }
+    // 주소에서 BASE_PATH를 뗀, 사이트 기준 경로로 정규화
+    function stripBasePath(p) {
+      if (BASE_PATH && (p === BASE_PATH || p.startsWith(BASE_PATH + '/'))) return p.slice(BASE_PATH.length) || '/';
+      return p;
+    }
     // 지금 주소에서 글 id 뽑기 (없으면 null)
     function currentPostId() {
-      const m = location.pathname.match(/^\/post\/([^/?#]+)\/?$/);
+      const m = stripBasePath(location.pathname).match(/^\/post\/([^/?#]+)\/?$/);
       return m ? m[1] : null;
     }
     function findNote(id) { return notes.find(x => String(x.id) === String(id)) || null; }
@@ -2060,14 +2078,16 @@
       const a = ev.target.closest && ev.target.closest('a[href]');
       if (!a) return;
       const raw = a.getAttribute('href') || '';
-      // 절대/상대 모두 받아서 같은 출처의 /post/:id 경로만 가로챔
+      // 절대/상대 모두 받아서 같은 출처의 /post/:id 경로만 가로챔 (BASE_PATH가 붙어 있어도 뗀 뒤 비교)
       let path = null;
-      if (/^\/post\//.test(raw)) {
-        path = raw;
+      const rawStripped = stripBasePath(raw);
+      if (/^\/post\//.test(rawStripped)) {
+        path = rawStripped;
       } else {
         try {
           const u = new URL(raw, location.origin);
-          if (u.origin === location.origin && /^\/post\//.test(u.pathname)) path = u.pathname + u.search;
+          const uPath = stripBasePath(u.pathname);
+          if (u.origin === location.origin && /^\/post\//.test(uPath)) path = uPath + u.search;
         } catch (_) {}
       }
       if (!path) return;   // 외부/일반 링크는 평소대로
@@ -2142,7 +2162,7 @@
       } else {
         // 없는/지워진 글 — 미리 덮어둔 모달을 닫고 주소만 홈으로 정리
         hidePost();
-        try { history.replaceState({}, '', BASE_PATH); } catch (_) {}
+        try { history.replaceState({}, '', BASE_PATH + '/'); } catch (_) {}
         toast('그 주소의 글을 못 찾았어 (id ' + id + ')', 'err');
       }
     })();

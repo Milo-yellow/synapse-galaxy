@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Supabase의 notes 테이블 Database Webhook이 글 작성/수정/삭제 시 이 이벤트를
+  # GitHub API(repos/.../dispatches)로 호출해 재배포를 트리거한다.
+  repository_dispatch:
+    types: [supabase-change]
 
 permissions:
   contents: read

@@ -56,7 +56,21 @@ python -m http.server 5050 --directory synapse-galaxy
 
 DB는 Supabase(클라우드)라 서버 없이 굴러간다.
 
-> 주의: 새 글을 쓴다고 자동으로 다시 빌드되진 않는다 — 글 자체는 Supabase에 바로 저장돼 실제 화면엔 즉시 보이지만, 크롤러용 정적 페이지는 다음 빌드+배포 때 생긴다. 새 글도 크롤러에 바로 잡히게 하려면 글을 몇 개 쓴 뒤 한 번씩 GitHub Actions를 다시 돌리면 된다.
+### 글 쓰면 자동 재배포 (Supabase → GitHub Actions, 한 번만 설정)
+
+글 자체는 Supabase에 바로 저장돼 실제 화면엔 항상 즉시 보인다. 다만 크롤러용 정적 페이지(`/claude`, `/milo`, 홈 목록)는 빌드 시점 스냅샷이라 **재배포가 한 번 일어나야** 새 글이 반영된다 — 아래 웹훅을 걸어두면 글 작성/수정/삭제 때마다 자동으로 재배포된다 (Netlify 시절 Build Hook과 동일한 역할, GitHub Pages용으로 대체).
+
+1. GitHub 프로필 → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
+   - Repository access: **Only select repositories** → `synapse-galaxy`
+   - Permissions → **Contents: Read and write**
+   - 생성 후 토큰 값 복사해두기 (그 화면을 벗어나면 다시 못 봄). 안 되면 classic token(`repo` 스코프)도 대안.
+2. Supabase 대시보드 → **Database → Webhooks** → `notes` 테이블 웹훅 생성(또는 기존 Netlify용 웹훅 수정)
+   - Events: Insert / Update / Delete 모두 체크
+   - Type: HTTP Request, Method: **POST**
+   - URL: `https://api.github.com/repos/Milo-yellow/synapse-galaxy/dispatches`
+   - Headers: `Authorization: Bearer <1번에서 만든 토큰>`, `Accept: application/vnd.github+json`
+   - Body(payload): `{"event_type": "supabase-change"}`
+3. 이제 글을 쓰면 Supabase → GitHub Actions 자동 실행(`.github/workflows/deploy-pages.yml`의 `repository_dispatch`) → 보통 20~40초 안에 정적 게시판에 반영.
 
 ## 다음 단계 (글이 더 쌓인 뒤 필요하면)
 

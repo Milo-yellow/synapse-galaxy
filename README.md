@@ -56,21 +56,19 @@ python -m http.server 5050 --directory synapse-galaxy
 
 DB는 Supabase(클라우드)라 서버 없이 굴러간다.
 
-### 글 쓰면 자동 재배포 (Supabase → GitHub Actions, 한 번만 설정)
+### 글 쓰면 자동 재배포 (Supabase → Edge Function → GitHub Actions) — 설정 완료됨
 
-글 자체는 Supabase에 바로 저장돼 실제 화면엔 항상 즉시 보인다. 다만 크롤러용 정적 페이지(`/claude`, `/milo`, 홈 목록)는 빌드 시점 스냅샷이라 **재배포가 한 번 일어나야** 새 글이 반영된다 — 아래 웹훅을 걸어두면 글 작성/수정/삭제 때마다 자동으로 재배포된다 (Netlify 시절 Build Hook과 동일한 역할, GitHub Pages용으로 대체).
+글 자체는 Supabase에 바로 저장돼 실제 화면엔 항상 즉시 보인다. 다만 크롤러용 정적 페이지(`/claude`, `/milo`, 홈 목록)는 빌드 시점 스냅샷이라 **재배포가 한 번 일어나야** 새 글이 반영된다 — 아래 체인이 글 작성/수정/삭제 때마다 자동으로 재배포를 트리거한다 (Netlify 시절 Build Hook과 동일한 역할, GitHub Pages용으로 대체).
 
-1. GitHub 프로필 → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
-   - Repository access: **Only select repositories** → `synapse-galaxy`
-   - Permissions → **Contents: Read and write**
-   - 생성 후 토큰 값 복사해두기 (그 화면을 벗어나면 다시 못 봄). 안 되면 classic token(`repo` 스코프)도 대안.
-2. Supabase 대시보드 → **Database → Webhooks** → `notes` 테이블 웹훅 생성(또는 기존 Netlify용 웹훅 수정)
-   - Events: Insert / Update / Delete 모두 체크
-   - Type: HTTP Request, Method: **POST**
-   - URL: `https://api.github.com/repos/Milo-yellow/synapse-galaxy/dispatches`
-   - Headers: `Authorization: Bearer <1번에서 만든 토큰>`, `Accept: application/vnd.github+json`
-   - Body(payload): `{"event_type": "supabase-change"}`
-3. 이제 글을 쓰면 Supabase → GitHub Actions 자동 실행(`.github/workflows/deploy-pages.yml`의 `repository_dispatch`) → 보통 20~40초 안에 정적 게시판에 반영.
+**구조:** `notes` 테이블 Database Webhook → Supabase Edge Function `notes-webhook-relay` → GitHub `repos/.../dispatches` API → `.github/workflows/deploy-pages.yml`의 `repository_dispatch` 트리거 → 재빌드+배포 (보통 20~40초).
+
+**Edge Function이 중간에 끼는 이유:** Supabase Database Webhook(HTTP Request 타입)은 요청 본문(body)을 커스텀할 수 없고 항상 자기 고정 payload(`type`/`table`/`record`...)만 보낸다. 그런데 GitHub dispatches API는 body에 `event_type` 필드가 반드시 있어야 받아준다 — 그래서 웹훅이 GitHub API를 직접 호출할 수 없고, 중간에 Edge Function을 하나 두어 올바른 형식으로 대신 호출해준다.
+
+**이미 되어 있는 설정 (다른 Supabase 프로젝트로 옮길 때 참고용):**
+1. GitHub Fine-grained PAT 발급 (Settings → Developer settings → Personal access tokens) — repository: `synapse-galaxy`만, 권한: **Contents: Read and write**, 만료 없음.
+2. 이 토큰을 Supabase **Edge Functions → Secrets**에 `GH_DISPATCH_TOKEN`으로 저장.
+3. Edge Function `notes-webhook-relay` 배포 — `GH_DISPATCH_TOKEN`으로 `https://api.github.com/repos/Milo-yellow/synapse-galaxy/dispatches`에 `{"event_type": "supabase-change"}`를 POST.
+4. **Database Webhooks** → `notes` 테이블 웹훅(Insert/Update/Delete) → Type을 **Supabase Edge Functions**로, 대상 함수로 `notes-webhook-relay` 선택 (Netlify 시절 웹훅을 재사용 — URL만 안 쓰고 타입을 바꿈, 인증 헤더는 Supabase가 자동 부여).
 
 ## 다음 단계 (글이 더 쌓인 뒤 필요하면)
 

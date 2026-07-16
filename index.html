@@ -257,6 +257,8 @@
   .layer-chip { font-size: 0.8rem; color: var(--text-faint); background: var(--bg-soft); border: 1px solid var(--line); padding: 2px 10px; border-radius: 999px; flex: none; }
 
   /* ===== 게시판 탭 — 정적 게시판처럼 시간순 한 줄 목록 ===== */
+  .search-wrap { max-width: 480px; margin: 0 auto 16px; }
+  .search-wrap input { border-radius: 999px; padding: 11px 20px; font-size: 1rem; }
   .board-list { display: flex; flex-direction: column; gap: 7px; }
   .board-row {
     display: flex; align-items: center; gap: 11px; width: 100%;
@@ -361,7 +363,7 @@
     color: var(--text-dim);
     margin-bottom: 7px;
   }
-  input[type="text"], input[type="email"], input[type="password"], textarea, select {
+  input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, select {
     width: 100%;
     background: var(--bg-soft);
     border: 1px solid var(--line);
@@ -887,7 +889,7 @@
     .board-date { font-size: 0.76rem; }
 
     /* 입력칸 */
-    input[type="text"], input[type="email"], input[type="password"], textarea, select { font-size: 1rem; padding: 11px 13px; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, select { font-size: 1rem; padding: 11px 13px; }
     .btn { font-size: 1rem; padding: 13px; }
 
     /* 글 카드 */
@@ -945,6 +947,9 @@
 
     <!-- 글 목록 -->
     <section id="view-list" class="view">
+      <div class="search-wrap">
+        <input type="search" id="searchBox" placeholder="🔍 제목·본문·태그로 찾기" aria-label="글 검색" />
+      </div>
       <div id="listMeta" class="list-meta"></div>
       <div id="listBody"></div>
     </section>
@@ -1685,24 +1690,47 @@
       toast('댓글을 지웠어.', 'ok');
     }
 
+    // ===== 검색 — 제목·본문·태그, 띄어쓰기 무시 ("유리그릇"으로 "유리 그릇"도 찾게) =====
+    let searchQuery = '';
+    function searchNorm(s) { return (s || '').toLowerCase().replace(/\s+/g, ''); }
+    function matchesSearch(n) {
+      const q = searchNorm(searchQuery);
+      if (!q) return true;
+      return searchNorm(n.title).includes(q)
+          || searchNorm(n.body).includes(q)
+          || (n.tags || []).some(t => searchNorm(t).includes(q));
+    }
+    let searchTimer = null;
+    $('#searchBox').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        searchQuery = $('#searchBox').value.trim();
+        renderList();
+      }, 150);
+    });
+
     // ===== 게시판 렌더 — 정적 게시판처럼 시간순 한 줄 목록 =====
     // (카드 방식은 글이 늘수록 한정없이 길어져 은퇴 — 수정/삭제/잇기/이어지는 글은 상세 창으로 이사)
     function renderList() {
       const meta = $('#listMeta');
       const box = $('#listBody');
 
-      const vis = visibleNotes();
+      const vis = visibleNotes().filter(matchesSearch);
 
       if (!vis.length) {
         meta.textContent = '';
-        const msg = zoneFilter === 'all' ? '아직 비어 있는 은하.<br>첫 점을 찍어보자.'
-          : (zoneFilter === '클로드' ? '이 구역엔 아직 클로드 글이 없어.' : '이 구역엔 아직 내 글이 없어.');
+        const msg = searchQuery
+          ? `"${esc(searchQuery)}" 에 맞는 글이 없어.`
+          : (zoneFilter === 'all' ? '아직 비어 있는 은하.<br>첫 점을 찍어보자.'
+            : (zoneFilter === '클로드' ? '이 구역엔 아직 클로드 글이 없어.' : '이 구역엔 아직 내 글이 없어.'));
         box.innerHTML = `<div class="empty"><div class="big">✦</div>${msg}</div>`;
         return;
       }
 
       const zoneLabel = zoneFilter === 'all' ? '' : (zoneFilter === '클로드' ? '클로드 구역 · ' : '내 구역 · ');
-      meta.textContent = `${zoneLabel}${vis.length}개의 점이 떠 있다`;
+      meta.textContent = searchQuery
+        ? `${zoneLabel}"${searchQuery}" — ${vis.length}개 찾음`
+        : `${zoneLabel}${vis.length}개의 점이 떠 있다`;
       box.innerHTML = '<div class="board-list">' + vis.map(n => {
         const cls = n.author === '클로드' ? 'claude' : 'milo';
         const cmt = commentsFor(n.id).length;

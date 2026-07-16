@@ -27,11 +27,29 @@ create table comments (
   created_at timestamptz default now()
 );
 
--- RLS: 개인용 초기 단계 → 익명 읽기/쓰기 허용.
--- 공개 배포로 확장할 때 정책 강화 검토.
+-- RLS: 읽기는 모두, 글쓰기·수정·삭제는 밀로 계정(Supabase Auth 로그인)만.
+-- 댓글은 방문자도 작성 가능, 삭제만 밀로.
+-- (2026-07 적용 — 마이그레이션 lock_writes_to_milo 로 운영 DB에 반영됨)
 alter table notes enable row level security;
 alter table manual_links enable row level security;
 alter table comments enable row level security;
-create policy "allow all" on notes for all using (true) with check (true);
-create policy "allow all" on manual_links for all using (true) with check (true);
-create policy "allow all" on comments for all using (true) with check (true);
+
+create policy "anyone can read" on notes for select using (true);
+create policy "milo can insert" on notes for insert to authenticated
+  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+create policy "milo can update" on notes for update to authenticated
+  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com')
+  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+create policy "milo can delete" on notes for delete to authenticated
+  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+
+create policy "anyone can read" on manual_links for select using (true);
+create policy "milo can insert" on manual_links for insert to authenticated
+  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+create policy "milo can delete" on manual_links for delete to authenticated
+  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+
+create policy "anyone can read" on comments for select using (true);
+create policy "anyone can insert" on comments for insert with check (true);
+create policy "milo can delete" on comments for delete to authenticated
+  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');

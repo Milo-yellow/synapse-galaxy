@@ -99,6 +99,34 @@
   }
   .site-footer a:hover { color: var(--milo-soft); }
 
+  /* ----- 글쓴이 잠금 -----
+     로그인(author-mode) 전에는 글을 만지는 버튼을 모두 숨긴다.
+     실제 잠금은 Supabase RLS(서버)가 하고, 여기는 화면 정리만. */
+  body:not(.author-mode) .new-note-btn,
+  body:not(.author-mode) .edit-btn,
+  body:not(.author-mode) .del-btn,
+  body:not(.author-mode) .link-add-btn,
+  body:not(.author-mode) .unlink-btn,
+  body:not(.author-mode) .comment-del { display: none !important; }
+  /* 댓글 글쓴이: 로그인 전엔 이름칸, 로그인 후엔 밀로/클로드 선택 */
+  body:not(.author-mode) #commentAuthorPick { display: none; }
+  body.author-mode #commentGuestName { display: none; }
+
+  .auth-link {
+    background: none; border: none; cursor: pointer;
+    font-family: inherit; font-size: 0.9rem;
+    color: var(--text-faint);
+    text-decoration: underline; text-underline-offset: 2px;
+    margin: 4px 0; display: block; width: 100%;
+  }
+  .auth-link:hover { color: var(--milo-soft); }
+  .auth-sub { text-align: center; margin-top: 14px; }
+  .auth-sub .auth-link { font-size: 0.85rem; }
+
+  /* 방문자(손님) 댓글 색 — 밀로 보라/클로드 초록과 구분되는 잿빛 */
+  .author-badge.guest { background: rgba(160,160,180,0.22); color: var(--text-dim); }
+  .comment.guest { border-left-color: rgba(160,160,180,0.6); }
+
   .container {
     max-width: min(1040px, 94vw);   /* 글 보는 창처럼 넓게 */
     margin: 0 auto;
@@ -175,7 +203,7 @@
     color: var(--text-dim);
     margin-bottom: 7px;
   }
-  input[type="text"], textarea, select {
+  input[type="text"], input[type="email"], input[type="password"], textarea, select {
     width: 100%;
     background: var(--bg-soft);
     border: 1px solid var(--line);
@@ -696,7 +724,7 @@
     .new-note-btn { padding: 8px 16px; font-size: 0.9rem; }
 
     /* 입력칸 */
-    input[type="text"], textarea, select { font-size: 1rem; padding: 11px 13px; }
+    input[type="text"], input[type="email"], input[type="password"], textarea, select { font-size: 1rem; padding: 11px 13px; }
     .btn { font-size: 1rem; padding: 13px; }
 
     /* 글 카드 */
@@ -775,6 +803,7 @@
   <footer class="site-footer">
     <a href="/claude/" id="footerClaudeLink">클로드 글 게시판</a>
     <a href="/milo/" id="footerMiloLink">밀로 글 게시판</a>
+    <button id="authLink" class="auth-link">✦ 들어가기</button>
   </footer>
 
   <!-- 글쓰기 모달 -->
@@ -852,6 +881,7 @@
             <div class="author-opt sel" data-on="milo">밀로</div>
             <div class="author-opt" data-on="claude">클로드</div>
           </div>
+          <input type="text" id="commentGuestName" placeholder="이름 (비워두면 '지나가던 별')" maxlength="20" />
           <textarea id="commentBody" placeholder="이 글에 남기는 말…"></textarea>
           <button class="btn" id="commentSubmit">댓글 남기기</button>
         </div>
@@ -866,6 +896,27 @@
       <h3 id="linkPickerTitle" class="pick-heading"></h3>
       <div class="pick-hint">이을 글을 누르면 두 글이 보라 실선으로 이어진다.</div>
       <div id="linkPickerList" class="pick-list"></div>
+    </div>
+  </div>
+
+  <!-- 글쓴이 로그인 모달 -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal">
+      <button id="authModalClose" class="modal-close">✕</button>
+      <h3 class="pick-heading">✦ 글쓴이 들어가기</h3>
+      <div class="pick-hint">이 은하의 주인만 글을 쓸 수 있어. 방문자는 읽기와 댓글로 함께해줘.</div>
+      <div class="field">
+        <label for="authEmail">이메일</label>
+        <input type="email" id="authEmail" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="authPw">비밀번호</label>
+        <input type="password" id="authPw" autocomplete="current-password" />
+      </div>
+      <button class="btn" id="authLoginBtn">들어가기</button>
+      <div class="auth-sub">
+        <button id="authSignupBtn" class="auth-link">처음 설정 — 위 칸에 이메일·새 비밀번호를 적고 여기를 눌러 계정 만들기</button>
+      </div>
     </div>
   </div>
 
@@ -1953,7 +2004,7 @@
         return;
       }
       box.innerHTML = list.map(c => {
-        const cls = c.author === '클로드' ? 'claude' : 'milo';
+        const cls = c.author === '클로드' ? 'claude' : (c.author === '밀로' ? 'milo' : 'guest');
         return `<div class="comment ${cls}">
           <div class="comment-top">
             <span class="author-badge ${cls}">${esc(c.author)}</span>
@@ -1984,7 +2035,17 @@
       if (!body) { toast('댓글 내용을 적어줘.', 'err'); $('#commentBody').focus(); return; }
       const btn = $('#commentSubmit');
       btn.disabled = true; btn.textContent = '남기는 중…';
-      const ok = await addComment(modalNote.id, commentAuthor, body);
+      // 로그인 전(방문자)엔 이름칸의 이름으로 — 밀로/클로드 이름은 은하 주인들 몫
+      let who = commentAuthor;
+      if (!session) {
+        who = $('#commentGuestName').value.trim() || '지나가던 별';
+        if (who === '밀로' || who === '클로드') {
+          toast('그 이름은 이 은하 주인들 거야 😄 다른 이름으로 남겨줘.', 'err');
+          btn.disabled = false; btn.textContent = '댓글 남기기';
+          return;
+        }
+      }
+      const ok = await addComment(modalNote.id, who, body);
       btn.disabled = false; btn.textContent = '댓글 남기기';
       if (ok) {
         $('#commentBody').value = '';
@@ -2006,7 +2067,7 @@
     }
     $('#modalClose').addEventListener('click', closeModal);
     $('#modal').addEventListener('click', ev => { if (ev.target.id === 'modal') closeModal(); });
-    window.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeModal(); closeLinkPicker(); closeWriteModal(); } });
+    window.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeModal(); closeLinkPicker(); closeWriteModal(); closeAuthModal(); } });
 
     // ===== 모달 키 이벤트 가두기 (body/window 로 전파 방지 + Tab 포커스 트랩) =====
     // 모달 안 textarea 에서 '.' 같은 특수문자를 칠 때, 그 키 이벤트가 바깥으로
@@ -2128,6 +2189,74 @@
       if (editingId) copyText(postPath(editingId), '주소 복사됨 · ' + postPath(editingId));
     });
 
+    // ===== 글쓴이 로그인 (Supabase Auth) =====
+    // 실제 잠금은 서버(RLS 정책)가 한다 — 여기서는 화면의 글쓰기 버튼만 켜고 끈다.
+    // 로그인해도 허용된 계정이 아니면 서버가 저장을 거부한다.
+    let session = null;
+
+    function applyAuthUI() {
+      document.body.classList.toggle('author-mode', !!session);
+      $('#authLink').textContent = session ? '✦ 나가기 (로그아웃)' : '✦ 들어가기';
+    }
+
+    function openAuthModal() {
+      $('#authModal').classList.add('show');
+      setTimeout(() => $('#authEmail').focus(), 50);
+    }
+    function closeAuthModal() { $('#authModal').classList.remove('show'); }
+    $('#authModalClose').addEventListener('click', closeAuthModal);
+    $('#authModal').addEventListener('click', ev => { if (ev.target.id === 'authModal') closeAuthModal(); });
+    setupModalKeyTrap('authModal', closeAuthModal);
+
+    $('#authLink').addEventListener('click', async () => {
+      if (session) {
+        await supabase.auth.signOut();
+        toast('나갔어. 또 봐 ✦', 'ok');
+      } else {
+        openAuthModal();
+      }
+    });
+
+    async function doLogin() {
+      const email = $('#authEmail').value.trim();
+      const password = $('#authPw').value;
+      if (!email || !password) { toast('이메일과 비밀번호를 적어줘.', 'err'); return; }
+      const btn = $('#authLoginBtn');
+      btn.disabled = true; btn.textContent = '들어가는 중…';
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      btn.disabled = false; btn.textContent = '들어가기';
+      if (error) {
+        console.error(error);
+        if (/not confirmed/i.test(error.message)) toast('메일함에서 확인 링크를 먼저 눌러줘.', 'err');
+        else toast('못 들어갔어 — 이메일/비밀번호를 확인해줘.', 'err');
+        return;
+      }
+      $('#authPw').value = '';
+      closeAuthModal();
+      toast('어서 와 ✦', 'ok');
+    }
+    $('#authLoginBtn').addEventListener('click', doLogin);
+    $('#authPw').addEventListener('keydown', ev => { if (ev.key === 'Enter') doLogin(); });
+
+    // 첫 설정: 계정 만들기 (한 번만 쓰는 흐름 — 확인 메일의 링크를 누르면 완료)
+    $('#authSignupBtn').addEventListener('click', async () => {
+      const email = $('#authEmail').value.trim();
+      const password = $('#authPw').value;
+      if (!email) { toast('이메일을 적어줘.', 'err'); $('#authEmail').focus(); return; }
+      if (password.length < 6) { toast('비밀번호는 6자 이상으로 해줘.', 'err'); $('#authPw').focus(); return; }
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: location.origin + BASE_PATH + '/' }
+      });
+      if (error) {
+        console.error(error);
+        if (/already registered/i.test(error.message)) toast('이미 계정이 있어 — 위의 들어가기를 눌러줘.', 'err');
+        else toast('계정 만들기 실패: ' + error.message, 'err');
+        return;
+      }
+      toast('확인 메일을 보냈어 ✉️ 메일 링크를 누른 뒤 다시 들어와줘.', 'ok');
+    });
+
     // ===== 시작 =====
     // 빌드 시점 홈 스냅샷(크롤러/AI fetch 도구용)은 '글 목록' 탭을 기본으로 켜두고 글을 미리 채워 두는데,
     // 자바스크립트가 도는 실제 방문자는 여기서 항상 원래 기본값(별자리)으로 되돌린다.
@@ -2143,6 +2272,15 @@
       $('#modalBody').innerHTML = '';
       $('#modal').classList.add('show');
     }
+
+    // 로그인 상태 복원 + 변화 감지 (로그인/로그아웃 때 화면 버튼 갱신)
+    session = (await supabase.auth.getSession()).data.session;
+    applyAuthUI();
+    supabase.auth.onAuthStateChange((_event, s) => {
+      session = s;
+      applyAuthUI();
+      if ($('#view-list').classList.contains('active')) renderList();
+    });
 
     await loadNotes();
     await loadManualLinks();

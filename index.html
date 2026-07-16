@@ -756,7 +756,22 @@
     border: 1px solid var(--line);
     border-radius: 16px;
     overflow: hidden;
+    /* 가로 드래그는 은하 유영, 세로 스와이프는 페이지 스크롤 그대로 (폰에서 스크롤 갇힘 방지) */
+    touch-action: pan-y;
   }
+  .canvas-wrap.panning { cursor: grabbing; }
+  /* 유영 컨트롤 — 확대/축소/처음으로 */
+  .galaxy-zoom {
+    position: absolute; top: 10px; right: 10px; z-index: 6;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .galaxy-zoom button {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(15,15,30,0.8); border: 1px solid rgba(255,255,255,0.18);
+    color: rgba(235,238,255,0.85); font-size: 1rem; line-height: 1;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .galaxy-zoom button:hover { border-color: var(--milo-soft); color: #fff; }
   #galaxyCanvas { display: block; width: 100%; height: 480px; cursor: default; }
   .galaxy-hint { text-align: center; color: var(--text-faint); font-size: 0.85rem; margin-top: 12px; }
   .canvas-wrap .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -996,6 +1011,11 @@
       <div class="canvas-wrap">
         <canvas id="galaxyCanvas"></canvas>
         <div id="galaxyHotspots"></div>
+        <div class="galaxy-zoom">
+          <button id="zoomIn" title="확대" aria-label="은하 확대">＋</button>
+          <button id="zoomOut" title="축소" aria-label="은하 축소">－</button>
+          <button id="zoomReset" title="처음 자리로" aria-label="은하 처음 자리로">⌖</button>
+        </div>
         <div id="galaxyEmpty" class="empty" style="display:none;"><div class="big">✦</div>아직 별이 없어.<br>태그를 단 글을 몇 개 써봐.</div>
       </div>
       <div class="galaxy-hint" id="galaxyHint">큰 별(태그)을 누르면 그 안의 글들로 줌인 ✦ 선은 글을 공유하는 태그끼리</div>
@@ -1986,6 +2006,7 @@
         n.x = clamp(n.x, n.r + 8, gW - n.r - 8);
         n.y = clamp(n.y, n.r + 8, gH - n.r - 8);
       });
+      resolveLabels();
     }
 
     function buildCluster(tag) {
@@ -2035,6 +2056,7 @@
         n.x = clamp(n.x, n.r + 8, gW - n.r - 8);
         n.y = clamp(n.y, n.r + 8, gH - n.r - 8);
       });
+      resolveLabels();
     }
 
     // ----- 별 발광 그리기 도우미 -----
@@ -2087,13 +2109,17 @@
 
     function draw() {
       ctx.clearRect(0, 0, gW, gH);
-      // 배경 잔별 — 먼 우주
+      // 배경 잔별 — 먼 우주 (유영해도 제자리: 아주 멀리 있는 별이라서)
       gBgStars.forEach(s => {
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255,255,255,${s.a})`;
         ctx.fill();
       });
+      // 여기부터는 우주 좌표 — 유영(이동/배율)을 거쳐 그린다
+      ctx.save();
+      ctx.translate(gView.x, gView.y);
+      ctx.scale(gView.k, gView.k);
       // 선
       gEdges.forEach(e => {
         const hot = gHover && (e.a === gHover || e.b === gHover);
@@ -2123,8 +2149,10 @@
       gNodes.forEach(n => {
         const hot = n === gHover;
         drawStar(n, hot);
-        // 라벨 — 태그는 2편 이상만 상시 표시, 1편짜리는 호버(gHover) 또는 탭으로 드러난(revealed) 때만
-        const showLabel = n.kind !== 'tag' || n.count >= 2 || hot || n.revealed;
+        // 라벨 — 기본 규칙(태그는 2편 이상)에 더해, 겹치는 라벨은 중요도 낮은 쪽이 양보(labelHidden).
+        // 숨은 라벨도 호버하거나 탭으로 드러내면(revealed) 보인다.
+        const baseShow = n.kind !== 'tag' || n.count >= 2;
+        const showLabel = (baseShow && !n.labelHidden) || hot || n.revealed;
         if (showLabel) {
           ctx.font = (n.kind === 'tag' ? '600 ' : '') + (n.kind === 'tag' ? 15 : 13) + "px 'Noto Sans KR', sans-serif";
           ctx.textAlign = 'center';
@@ -2139,6 +2167,27 @@
           }
         }
       });
+      ctx.restore();
+    }
+
+    // ===== 라벨 겹침 정리 — 중요한 별(글 많은 순)부터 자리를 잡고, 겹치면 나머지는 숨긴다 =====
+    // 숨은 라벨은 사라지는 게 아니라 호버/탭으로 드러난다. 위치가 다시 계산될 때마다 새로 판정.
+    function resolveLabels() {
+      const placed = [];
+      const ordered = [...gNodes].sort((a, b) => (b.count || 0) - (a.count || 0) || b.r - a.r);
+      ordered.forEach(n => {
+        n.labelHidden = false;
+        if (n.kind === 'tag' && n.count < 2) return;   // 어차피 기본 규칙으로 숨음
+        ctx.font = (n.kind === 'tag' ? '600 15' : '13') + "px 'Noto Sans KR', sans-serif";
+        const label = (n.kind === 'tag' ? '#' : '') + (n.label.length > 14 ? n.label.slice(0, 13) + '…' : n.label);
+        const w = ctx.measureText(label).width + 8;
+        const h = n.kind === 'tag' ? 40 : 18;          // 태그는 아래 '~편' 줄까지
+        const rect = { x: n.x - w / 2, y: n.y + n.r + 4, w, h };
+        const overlaps = placed.some(r =>
+          rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y);
+        if (overlaps) n.labelHidden = true;
+        else placed.push(rect);
+      });
     }
 
     function hitTest(mx, my) {
@@ -2150,9 +2199,96 @@
       return null;
     }
 
+    // ===== 은하 유영 — 드래그로 이동, 휠/버튼으로 확대 =====
+    // 그림은 gView(이동+배율)를 거쳐 그려지고, 마우스 좌표는 역변환해서 "우주 좌표"로 바꾼다.
+    // 별 위 투명 버튼 레이어는 CSS transform 하나로 통째로 따라온다.
+    let gView = { x: 0, y: 0, k: 1 };
+
+    function applyViewToHotspots() {
+      const layer = $('#galaxyHotspots');
+      layer.style.transformOrigin = '0 0';
+      layer.style.transform = `translate(${gView.x}px, ${gView.y}px) scale(${gView.k})`;
+    }
+    function resetView() {
+      gView = { x: 0, y: 0, k: 1 };
+      applyViewToHotspots();
+    }
+    function zoomAt(mx, my, factor) {
+      const k2 = clamp(gView.k * factor, 0.5, 3);
+      const real = k2 / gView.k;
+      // 확대 중심(mx,my)이 화면에서 제자리에 있도록 이동을 함께 보정
+      gView.x = mx - (mx - gView.x) * real;
+      gView.y = my - (my - gView.y) * real;
+      gView.k = k2;
+      applyViewToHotspots();
+      draw();
+    }
+
+    const wrapEl = document.querySelector('.canvas-wrap');
+    $('#zoomIn').addEventListener('click', () => zoomAt(gW / 2, gH / 2, 1.3));
+    $('#zoomOut').addEventListener('click', () => zoomAt(gW / 2, gH / 2, 1 / 1.3));
+    $('#zoomReset').addEventListener('click', () => { resetView(); draw(); });
+    wrapEl.addEventListener('wheel', ev => {
+      ev.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(ev.clientX - rect.left, ev.clientY - rect.top, Math.exp(-ev.deltaY * 0.0016));
+    }, { passive: false });
+
+    // 드래그 유영 (마우스·터치 공용) — 버튼(별) 위에서 시작해도 wrap까지 버블돼서 잡힌다
+    const gPointers = new Map();
+    let gDragDist = 0;       // 누적 이동량 — 몇 px 이상이면 '끌기'로 보고 클릭을 무시
+    let gPinchDist = 0;
+    wrapEl.addEventListener('pointerdown', ev => {
+      if (ev.target.closest('.galaxy-zoom')) return;   // 줌 버튼은 유영에 안 끼움
+      gPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      gDragDist = 0;
+      gPinchDist = 0;
+    });
+    wrapEl.addEventListener('pointermove', ev => {
+      const p = gPointers.get(ev.pointerId);
+      if (!p) return;
+      const cur = { x: ev.clientX, y: ev.clientY };
+      gPointers.set(ev.pointerId, cur);
+      if (gPointers.size === 1) {
+        const dx = cur.x - p.x, dy = cur.y - p.y;
+        gDragDist += Math.abs(dx) + Math.abs(dy);
+        if (gDragDist > 6) wrapEl.classList.add('panning');
+        gView.x += dx; gView.y += dy;
+        applyViewToHotspots();
+        draw();
+      } else if (gPointers.size === 2) {
+        // 두 손가락 벌리기/오므리기 = 확대/축소
+        const [a, b] = [...gPointers.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        if (gPinchDist) {
+          const rect = canvas.getBoundingClientRect();
+          zoomAt((a.x + b.x) / 2 - rect.left, (a.y + b.y) / 2 - rect.top, dist / gPinchDist);
+        }
+        gPinchDist = dist;
+        gDragDist = 100;   // 핀치 후 클릭 무시
+      }
+    });
+    const endPointer = ev => {
+      gPointers.delete(ev.pointerId);
+      gPinchDist = 0;
+      if (!gPointers.size) wrapEl.classList.remove('panning');
+    };
+    wrapEl.addEventListener('pointerup', endPointer);
+    wrapEl.addEventListener('pointercancel', endPointer);
+    // 끌고 난 직후의 클릭(손 뗄 때 나는 클릭)은 별 클릭으로 치지 않는다.
+    // 한 번 삼키면 초기화 — 다음 클릭부터는 정상. 줌 버튼은 예외.
+    wrapEl.addEventListener('click', ev => {
+      if (ev.target.closest('.galaxy-zoom')) return;
+      if (gDragDist > 6) { ev.stopPropagation(); ev.preventDefault(); gDragDist = 0; }
+    }, true);
+
     function eventPos(ev) {
       const rect = canvas.getBoundingClientRect();
-      return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+      // 화면 좌표 → 우주 좌표 (유영 이동/배율 역변환)
+      return {
+        x: (ev.clientX - rect.left - gView.x) / gView.k,
+        y: (ev.clientY - rect.top - gView.y) / gView.k
+      };
     }
 
     canvas.addEventListener('mousemove', ev => {
@@ -2227,6 +2363,7 @@
 
     function renderGalaxy() {
       resizeCanvas();
+      resetView();   // 배치가 새로 계산되므로 유영 위치도 처음으로
       const empty = $('#galaxyEmpty');
       const back = $('#galaxyBack');
       const crumb = $('#galaxyCrumb');

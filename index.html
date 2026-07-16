@@ -274,7 +274,7 @@
   .board-cmt { flex: none; color: var(--text-faint); font-size: 0.82rem; }
   .board-date { flex: none; color: var(--text-faint); font-size: 0.82rem; }
   @media (max-width: 640px) {
-    .board-title { white-space: normal; }   /* 폰에선 제목 줄바꿈 허용 */
+    .board-title { white-space: normal; word-break: keep-all; }   /* 폰에선 제목 줄바꿈 허용 (단어 단위로) */
     .board-cmt { display: none; }
   }
 
@@ -289,13 +289,15 @@
     padding: 0 20px 80px;
   }
 
-  /* 탭 */
+  /* 탭 — 좁으면 버튼이 통째로 다음 줄로 (버튼 안에서 글자가 꺾이지 않게) */
   .tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     justify-content: center;
     margin-bottom: 32px;
   }
+  .tab, .new-note-btn, .zone { white-space: nowrap; }
   .tab {
     background: var(--bg-soft);
     border: 1px solid var(--line);
@@ -330,7 +332,7 @@
   .new-note-btn:active { transform: scale(0.97); }
 
   /* 구역(영역) 토글 — 내 글 / 클로드 글 */
-  .zonebar { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+  .zonebar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 14px; }
   .zone {
     background: var(--bg-soft);
     border: 1px solid var(--line);
@@ -874,10 +876,15 @@
 
     .container { padding: 0 16px 64px; }
 
-    /* 탭이 두 줄로 깨지지 않게 작게 */
-    .tabs { gap: 6px; margin-bottom: 24px; }
-    .tab { padding: 8px 14px; font-size: 0.9rem; }
-    .new-note-btn { padding: 8px 16px; font-size: 0.9rem; }
+    /* 탭이 한 줄에 들어가게 작게 (안 맞으면 버튼째 줄바꿈) */
+    .tabs { gap: 5px; margin-bottom: 24px; }
+    .tab { padding: 7px 11px; font-size: 0.84rem; }
+    .new-note-btn { padding: 7px 12px; font-size: 0.84rem; }
+    .zone { padding: 6px 12px; font-size: 0.84rem; }
+
+    /* 게시판 줄도 폰에선 조금 작게 */
+    .board-row { padding: 11px 12px; font-size: 0.95rem; gap: 9px; }
+    .board-date { font-size: 0.76rem; }
 
     /* 입력칸 */
     input[type="text"], input[type="email"], input[type="password"], textarea, select { font-size: 1rem; padding: 11px 13px; }

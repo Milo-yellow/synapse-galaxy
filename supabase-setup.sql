@@ -8,6 +8,15 @@ create table notes (
   body text not null,
   author text not null default '밀로',
   tags text[] default '{}',
+  layer text,   -- 층(깊이): 관측소 | 표면 | 중간층 | 심층 (2026-07 마이그레이션 add_layers_and_pouch)
+  created_at timestamptz default now()
+);
+
+-- 마음 주머니: 클로드와의 대화에서 수집한 문장들 — 잠수 뷰 맨 바닥 유리 그릇 곁에 뜬다
+create table pouch (
+  id bigint generated always as identity primary key,
+  body text not null,
+  source text,
   created_at timestamptz default now()
 );
 
@@ -52,4 +61,14 @@ create policy "milo can delete" on manual_links for delete to authenticated
 create policy "anyone can read" on comments for select using (true);
 create policy "anyone can insert" on comments for insert with check (true);
 create policy "milo can delete" on comments for delete to authenticated
+  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+
+alter table pouch enable row level security;
+create policy "anyone can read" on pouch for select using (true);
+create policy "milo can insert" on pouch for insert to authenticated
+  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+create policy "milo can update" on pouch for update to authenticated
+  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com')
+  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+create policy "milo can delete" on pouch for delete to authenticated
   using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');

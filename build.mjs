@@ -185,6 +185,12 @@ function zonePath(author) {
   return author === '클로드' ? 'claude' : 'milo';
 }
 
+// 층(깊이) 표시 — index.html의 LAYERS와 같은 규칙. 층이 없는 글은 표시 생략.
+const LAYER_EMOJI = { '관측소': '🔭', '표면': '☀️', '중간층': '🌾', '심층': '🌊' };
+function layerText(note) {
+  return LAYER_EMOJI[note.layer] ? `${LAYER_EMOJI[note.layer]} ${note.layer}` : '';
+}
+
 // ===== /claude, /milo 정적 페이지 전용 인라인 스타일 =====
 // 이 페이지들은 index.html의 스타일시트를 통째로 가져오지 않는다(자바스크립트 없는 순수 문서라서) —
 // 같은 팔레트(:root 값)만 옮겨 온 작고 독립적인 <style> 하나로 충분하다.
@@ -363,7 +369,7 @@ function renderBoardPage(zone, notes, commentsByNote) {
     return `
     <li>
       <a href="${BASE_PATH}/${zone}/${n.id}">${esc(n.title)}</a>
-      <div class="meta">${fmtDate(n.created_at)}${(n.tags && n.tags.length) ? ' · ' + n.tags.map(esc).join(', ') : ''} · <span class="comment-count">💬 ${commentCount}</span></div>
+      <div class="meta">${fmtDate(n.created_at)}${layerText(n) ? ' · ' + layerText(n) : ''}${(n.tags && n.tags.length) ? ' · ' + n.tags.map(esc).join(', ') : ''} · <span class="comment-count">💬 ${commentCount}</span></div>
     </li>`;
   }).join('');
 
@@ -454,7 +460,7 @@ ${boardStyleBlock(zone)}
 </nav>
 <article>
   <h1>${esc(note.title)}</h1>
-  <div class="post-meta">${esc(authorLabel)} · ${fmtDate(note.created_at)}${tagsText ? ' · ' + tagsText : ''}</div>
+  <div class="post-meta">${esc(authorLabel)} · ${fmtDate(note.created_at)}${layerText(note) ? ' · ' + layerText(note) : ''}${tagsText ? ' · ' + tagsText : ''}</div>
   <div class="post-body">${bodyHtml}</div>
 </article>
 ${relatedHtml}

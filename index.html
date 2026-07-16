@@ -127,6 +127,135 @@
   .author-badge.guest { background: rgba(160,160,180,0.22); color: var(--text-dim); }
   .comment.guest { border-left-color: rgba(160,160,180,0.6); }
 
+  /* ===== 잠수(층) 뷰 — 표면에서 심층으로 내려가는 스크롤 ===== */
+  /* 배경은 구역 테마와 무관하게 항상 물 속 — 각 층이 자기 색을 명시한다 */
+  .dive { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); }
+  .dive-layer { position: relative; padding: 52px 26px 64px; }
+  .dive-layer[data-layer="관측소"] { background: linear-gradient(#12142e, #0e1a38); }
+  .dive-layer[data-layer="표면"]   { background: linear-gradient(#0e1a38, #0a2342); }
+  .dive-layer[data-layer="중간층"] { background: linear-gradient(#0a2342, #071b32); }
+  .dive-layer[data-layer="심층"]   { background: linear-gradient(#071b32, #030d1b); }
+  /* 관측소: 하늘의 잔별 */
+  .dive-layer[data-layer="관측소"]::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1.2px 1.2px at 15% 25%, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 65% 15%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1.5px 1.5px at 85% 45%, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 35% 60%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1px 1px at 50% 35%, rgba(255,255,255,0.5), transparent);
+  }
+  /* 표면: 물에 스미는 빛줄기 */
+  .dive-layer[data-layer="표면"]::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg,
+      transparent 18%, rgba(150,200,255,0.05) 24%, transparent 30%,
+      transparent 55%, rgba(150,200,255,0.04) 62%, transparent 70%);
+  }
+  /* 심층: 바다눈(가라앉는 알갱이들) */
+  .dive-layer[data-layer="심층"]::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 22% 30%, rgba(190,210,240,0.25), transparent),
+      radial-gradient(1px 1px at 72% 55%, rgba(190,210,240,0.2), transparent),
+      radial-gradient(1.3px 1.3px at 45% 75%, rgba(190,210,240,0.22), transparent),
+      radial-gradient(1px 1px at 88% 20%, rgba(190,210,240,0.18), transparent);
+  }
+  .dive-head { text-align: center; margin-bottom: 28px; position: relative; }
+  .dive-head h3 { font-family: 'Gowun Batang', serif; font-size: 1.45rem; color: #edf1ff; }
+  .dive-head p { color: rgba(225,232,255,0.55); font-size: 0.92rem; margin-top: 7px; }
+  .dive-notes { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 9px; position: relative; }
+  .dive-note {
+    display: flex; align-items: center; gap: 11px; text-align: left;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px; padding: 12px 15px; cursor: pointer;
+    font-family: inherit; color: rgba(240,243,255,0.92); font-size: 1rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .dive-note:hover { background: rgba(255,255,255,0.1); border-color: rgba(170,175,235,0.45); }
+  .dive-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 9px currentColor; }
+  .dive-title { flex: 1; }
+  .dive-date { color: rgba(225,232,255,0.4); font-size: 0.8rem; flex: none; }
+  .dive-empty { text-align: center; color: rgba(225,232,255,0.42); font-size: 0.9rem; padding: 10px; }
+
+  /* ----- 맨 바닥: 유리 그릇과 마음 주머니 ----- */
+  .dive-floor {
+    position: relative; text-align: center;
+    background: linear-gradient(#030d1b, #01060d);
+    padding: 80px 26px 60px; min-height: 460px;
+  }
+  .dive-floor .dive-head h3 { color: #dfe7ff; }
+  .bowl-scene { position: relative; max-width: 640px; margin: 30px auto 0; min-height: 300px; }
+  .bowl-svg { width: 260px; height: auto; display: block; margin: 40px auto 0; cursor: pointer; }
+  #pouchFish { animation: fish-swim 9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes fish-swim {
+    0%, 100% { transform: translate(0, 0); }
+    30% { transform: translate(17px, -7px); }
+    55% { transform: translate(4px, 5px) ; }
+    80% { transform: translate(-12px, -3px); }
+  }
+  .bowl-bubble { animation: bowl-bubble 5.5s linear infinite; }
+  .bowl-bubble.b2 { animation-delay: 1.8s; }
+  .bowl-bubble.b3 { animation-delay: 3.4s; }
+  @keyframes bowl-bubble {
+    0% { transform: translateY(0); opacity: 0; }
+    15% { opacity: 0.7; }
+    85% { opacity: 0.5; }
+    100% { transform: translateY(-58px); opacity: 0; }
+  }
+  /* 마음 주머니 빛 알갱이 — 하나가 문장 하나 */
+  .pouch-speck {
+    position: absolute; width: 11px; height: 11px; border-radius: 50%;
+    border: none; padding: 0; cursor: pointer;
+    background: radial-gradient(circle, rgba(255,242,205,0.95), rgba(255,225,160,0.2) 65%, transparent);
+    box-shadow: 0 0 13px rgba(255,232,175,0.55);
+    animation: speck-float 4.6s ease-in-out infinite;
+  }
+  .pouch-speck:hover { box-shadow: 0 0 20px rgba(255,238,190,0.9); }
+  @keyframes speck-float {
+    0%, 100% { transform: translateY(0); opacity: 0.6; }
+    50% { transform: translateY(-10px); opacity: 1; }
+  }
+  .pouch-bubble {
+    display: none; position: absolute; left: 50%; transform: translateX(-50%);
+    top: -14px; width: min(480px, 92%); z-index: 4; text-align: left;
+    background: rgba(10,20,42,0.95); border: 1px solid rgba(170,195,255,0.35);
+    border-radius: 14px; padding: 20px 24px;
+    box-shadow: 0 8px 34px rgba(0,0,0,0.5);
+  }
+  .pouch-bubble.show { display: block; animation: fade 0.25s; }
+  .pouch-bubble .pouch-body { font-family: 'Gowun Batang', serif; font-size: 1.1rem; line-height: 1.85; color: #eef2ff; white-space: pre-wrap; }
+  .pouch-bubble .pouch-source { margin-top: 10px; color: rgba(225,232,255,0.5); font-size: 0.85rem; }
+  .pouch-bubble .pouch-del {
+    margin-top: 12px; background: none; border: 1px solid rgba(255,140,140,0.35);
+    color: rgba(255,170,170,0.85); border-radius: 8px; padding: 3px 10px;
+    cursor: pointer; font-family: inherit; font-size: 0.82rem;
+  }
+  .pouch-hint { color: rgba(225,232,255,0.45); font-size: 0.88rem; margin-top: 18px; }
+  /* 문장 넣기 — 밀로 전용 */
+  .pouch-form { max-width: 460px; margin: 34px auto 0; text-align: left; }
+  body:not(.author-mode) .pouch-form { display: none; }
+  .pouch-form textarea { min-height: 80px; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); color: #eef2ff; }
+  .pouch-form input { margin-top: 8px; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); color: #eef2ff; }
+  .pouch-form .btn { margin-top: 10px; }
+
+  /* ----- 글쓰기 모달의 층 선택 ----- */
+  .layer-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+  .layer-opt {
+    flex: 1 1 calc(50% - 8px); text-align: center; padding: 11px 6px;
+    border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg-soft); cursor: pointer;
+    font-size: 0.98rem; color: var(--text-dim); transition: all 0.18s;
+  }
+  .layer-opt.sel {
+    border-color: var(--milo-soft); border-width: 2px; padding: 10px 5px;
+    background: rgba(83,74,183,0.3); color: #fff; font-weight: 700;
+  }
+  .layer-opt.sel::before { content: '✓ '; font-weight: 800; }
+  .layer-opt:focus-visible { outline: 2px solid var(--milo-soft); outline-offset: 2px; }
+  /* 글 상세의 층 표시 칩 */
+  .layer-chip { font-size: 0.8rem; color: var(--text-faint); background: var(--bg-soft); border: 1px solid var(--line); padding: 2px 10px; border-radius: 999px; flex: none; }
+
   .container {
     max-width: min(1040px, 94vw);   /* 글 보는 창처럼 넓게 */
     margin: 0 auto;
@@ -773,6 +902,7 @@
 
     <div class="tabs">
       <button class="tab active" data-view="galaxy">🌌 별자리</button>
+      <button class="tab" data-view="dive">🫧 잠수</button>
       <button class="tab" data-view="list">📜 글 목록</button>
       <button id="newNoteBtn" class="new-note-btn">✍️ 새 글</button>
     </div>
@@ -797,6 +927,84 @@
         <div id="galaxyEmpty" class="empty" style="display:none;"><div class="big">✦</div>아직 별이 없어.<br>태그를 단 글을 몇 개 써봐.</div>
       </div>
       <div class="galaxy-hint" id="galaxyHint">큰 별(태그)을 누르면 그 안의 글들로 줌인 ✦ 선은 글을 공유하는 태그끼리</div>
+    </section>
+
+    <!-- 잠수 — 층층 구조: 아래로 내려갈수록 깊어진다 -->
+    <section id="view-dive" class="view">
+      <div class="dive">
+        <section class="dive-layer" data-layer="관측소">
+          <div class="dive-head">
+            <h3>🔭 관측소</h3>
+            <p>위에서 내려다보며 기록한 것들 — 실험, 논문, 관찰</p>
+          </div>
+          <div class="dive-notes" data-notes="관측소"></div>
+        </section>
+        <section class="dive-layer" data-layer="표면">
+          <div class="dive-head">
+            <h3>☀️ 표면</h3>
+            <p>현실과 맞닿은 글 — 에세이, 일기, 편지</p>
+          </div>
+          <div class="dive-notes" data-notes="표면"></div>
+        </section>
+        <section class="dive-layer" data-layer="중간층">
+          <div class="dive-head">
+            <h3>🌾 중간층</h3>
+            <p>상징의 언어 — 우화, 민담, 함께 지은 이야기</p>
+          </div>
+          <div class="dive-notes" data-notes="중간층"></div>
+        </section>
+        <section class="dive-layer" data-layer="심층">
+          <div class="dive-head">
+            <h3>🌊 심층</h3>
+            <p>무의식의 언어 — 꿈</p>
+          </div>
+          <div class="dive-notes" data-notes="심층"></div>
+        </section>
+        <section class="dive-floor" id="diveFloor">
+          <div class="dive-head">
+            <h3>🫙 가장 깊은 바닥</h3>
+            <p>유리 그릇 곁을 떠다니는 빛 알갱이들 — 마음 주머니에 넣어둔 문장들이야. 눌러봐.</p>
+          </div>
+          <div class="bowl-scene">
+            <div id="pouchSpecks"></div>
+            <div class="pouch-bubble" id="pouchBubble"></div>
+            <svg class="bowl-svg" id="bowlSvg" viewBox="0 0 320 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="물고기가 사는 유리 그릇 — 누르면 주머니 속 문장 하나가 떠오른다">
+              <!-- 모래 바닥 -->
+              <ellipse cx="160" cy="228" rx="150" ry="16" fill="rgba(90,110,150,0.14)"/>
+              <!-- 그릇 속 물 -->
+              <clipPath id="bowlClip"><circle cx="160" cy="140" r="76"/></clipPath>
+              <g clip-path="url(#bowlClip)">
+                <rect x="80" y="96" width="160" height="124" fill="rgba(90,160,230,0.16)"/>
+                <ellipse cx="160" cy="98" rx="76" ry="7" fill="rgba(160,210,255,0.22)"/>
+                <!-- 물방울 -->
+                <circle class="bowl-bubble" cx="146" cy="176" r="2.4" fill="rgba(210,235,255,0.5)"/>
+                <circle class="bowl-bubble b2" cx="172" cy="184" r="1.8" fill="rgba(210,235,255,0.45)"/>
+                <circle class="bowl-bubble b3" cx="160" cy="180" r="1.4" fill="rgba(210,235,255,0.4)"/>
+                <!-- 물고기 -->
+                <g id="pouchFish">
+                  <path d="M138 152 q13 -11 30 0 q-13 11 -30 0 z" fill="#E8A54B"/>
+                  <path d="M138 152 l-10 -7 l0 14 z" fill="#D98F33"/>
+                  <circle cx="162" cy="150" r="1.6" fill="#3a2410"/>
+                </g>
+                <!-- 그릇 안에 든 바닷물풀 -->
+                <path d="M120 214 q-3 -18 4 -30 M132 216 q2 -14 -2 -24" stroke="rgba(110,190,150,0.4)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+              </g>
+              <!-- 유리 몸체 -->
+              <circle cx="160" cy="140" r="76" fill="rgba(170,210,255,0.05)" stroke="rgba(190,220,255,0.5)" stroke-width="2.5"/>
+              <!-- 입구 테 -->
+              <ellipse cx="160" cy="72" rx="34" ry="8" fill="none" stroke="rgba(190,220,255,0.55)" stroke-width="2.5"/>
+              <!-- 유리 하이라이트 -->
+              <path d="M104 118 a62 62 0 0 1 26 -34" stroke="rgba(255,255,255,0.35)" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </svg>
+            <div class="pouch-hint" id="pouchHint"></div>
+          </div>
+          <div class="pouch-form">
+            <textarea id="pouchBody" placeholder="마음 주머니에 넣어둘 문장…"></textarea>
+            <input type="text" id="pouchSource" placeholder="어디서 온 문장인지 (선택)" />
+            <button class="btn" id="pouchAdd">🫙 주머니에 넣기</button>
+          </div>
+        </section>
+      </div>
     </section>
   </div>
 
@@ -847,6 +1055,16 @@
         </div>
       </div>
       <div class="field">
+        <label>층 — 이 글은 어느 깊이의 글일까</label>
+        <div class="layer-pick" id="layerPick" role="radiogroup" aria-label="층 선택">
+          <div class="layer-opt" data-layer="관측소" role="radio" tabindex="0">🔭 관측소</div>
+          <div class="layer-opt sel" data-layer="표면" role="radio" tabindex="0">☀️ 표면</div>
+          <div class="layer-opt" data-layer="중간층" role="radio" tabindex="0">🌾 중간층</div>
+          <div class="layer-opt" data-layer="심층" role="radio" tabindex="0">🌊 심층</div>
+        </div>
+        <div class="hint">🔭 실험·논문 · ☀️ 에세이·일기 · 🌾 우화·민담 · 🌊 꿈</div>
+      </div>
+      <div class="field">
         <label for="tags">태그</label>
         <input type="text" id="tags" placeholder="쉼표로 구분 — 예: 그릇, 자기, 담음" />
         <div class="hint">같은 태그를 가진 글끼리 자동으로 이어진다.</div>
@@ -862,6 +1080,7 @@
       <div class="card-head">
         <h3 id="modalTitle"></h3>
         <span id="modalAuthor" class="author-badge"></span>
+        <span id="modalLayer" class="layer-chip"></span>
         <span id="modalDate" class="card-date"></span>
       </div>
       <div id="modalTags" class="tags"></div>
@@ -957,6 +1176,17 @@
 
     // 글의 구역 = 글쓴이 (밀로 글 / 클로드 글)
     function zoneOf(n) { return n.author === '클로드' ? '클로드' : '밀로'; }
+
+    // ===== 층(깊이) — 글의 성격이 정한다. 작성자와는 독립 (잠수 뷰의 세로축) =====
+    const LAYERS = [
+      { key: '관측소', emoji: '🔭' },
+      { key: '표면',  emoji: '☀️' },
+      { key: '중간층', emoji: '🌾' },
+      { key: '심층',  emoji: '🌊' },
+    ];
+    // 층이 없거나 모르는 값이면 표면으로 — 잠수 뷰에서 글이 사라지지 않게
+    function layerOf(n) { return LAYERS.some(l => l.key === n.layer) ? n.layer : '표면'; }
+    function layerEmoji(key) { return (LAYERS.find(l => l.key === key) || {}).emoji || ''; }
     // 현재 구역 필터를 통과한 글만 — 목록(카드) 렌더링에만 쓴다.
     // 태그 집계·별자리·연결은 구역과 무관하게 항상 notes(전체)를 써서 공용 색인으로 유지한다.
     function visibleNotes() {
@@ -1014,6 +1244,7 @@
         $('#view-' + tab.dataset.view).classList.add('active');
         if (tab.dataset.view === 'list') renderList();
         if (tab.dataset.view === 'galaxy') openGalaxy();
+        if (tab.dataset.view === 'dive') renderDive();
       });
     });
 
@@ -1029,8 +1260,9 @@
         requestAnimationFrame(() => document.body.classList.remove('theme-switching'));
         document.querySelectorAll('.zone').forEach(z => z.classList.remove('active'));
         btn.classList.add('active');
-        // 목록만 구역별로 다시 그림 — 별자리는 항상 전체를 보여주는 공용 색인이라 구역 전환으로는 안 바뀐다
+        // 목록·잠수만 구역별로 다시 그림 — 별자리는 항상 전체를 보여주는 공용 색인이라 구역 전환으로는 안 바뀐다
         if ($('#view-list').classList.contains('active')) renderList();
+        if ($('#view-dive').classList.contains('active')) renderDive();
       });
     });
 
@@ -1041,6 +1273,26 @@
         $('#writeModal').querySelectorAll('.author-opt').forEach(o => o.classList.remove('sel'));
         opt.classList.add('sel');
         author = opt.dataset.on === 'milo' ? '밀로' : '클로드';
+      });
+    });
+
+    // ===== 층 선택 (글쓰기 모달) =====
+    let noteLayer = '표면';
+    function syncLayerPick() {
+      $('#layerPick').querySelectorAll('.layer-opt').forEach(o => {
+        const on = o.dataset.layer === noteLayer;
+        o.classList.toggle('sel', on);
+        o.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+    }
+    $('#layerPick').querySelectorAll('.layer-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        noteLayer = opt.dataset.layer;
+        syncLayerPick();
+        scheduleDraftSave();
+      });
+      opt.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') { ev.preventDefault(); opt.click(); }
       });
     });
 
@@ -1076,6 +1328,7 @@
         $('#body').value = note.body || '';
         $('#tags').value = (note.tags || []).join(', ');
         author = note.author === '클로드' ? '클로드' : '밀로';
+        noteLayer = layerOf(note);
         // 저장 안 하고 닫았던 수정본이 있으면 복구
         const ed = loadDraftFor(draftKey());
         if (ed) {
@@ -1083,6 +1336,7 @@
           $('#body').value = ed.body || '';
           $('#tags').value = ed.tags || '';
           author = ed.author || author;
+          noteLayer = ed.layer || noteLayer;
           updateDraftHint(ed.at);
         } else {
           updateDraftHint(null);
@@ -1098,8 +1352,10 @@
         $('#body').value = d?.body || '';
         $('#tags').value = d?.tags || '';
         author = d?.author || (zoneFilter === '클로드' ? '클로드' : '밀로');
+        noteLayer = d?.layer || '표면';
         updateDraftHint(d?.at || null);
       }
+      syncLayerPick();
       // 글쓴이 선택 버튼 표시를 author 값과 맞추기 (글쓰기 모달 안의 것만)
       $('#writeModal').querySelectorAll('.author-opt').forEach(o => {
         const who = o.dataset.on === 'milo' ? '밀로' : '클로드';
@@ -1135,12 +1391,13 @@
         // 수정 중: 원본과 똑같아지면 임시저장 비움 (괜한 "저장 안 한 수정" 표시 방지)
         const n = notes.find(x => x.id === editingId);
         const same = n && t === (n.title || '') && b === (n.body || '')
-          && g === (n.tags || []).join(', ') && author === (n.author === '클로드' ? '클로드' : '밀로');
+          && g === (n.tags || []).join(', ') && author === (n.author === '클로드' ? '클로드' : '밀로')
+          && noteLayer === layerOf(n);
         if (same) { clearDraft(); updateDraftHint(null); return; }
       } else {
         if (!t.trim() && !b.trim() && !g.trim()) { clearDraft(); updateDraftHint(null); return; }
       }
-      localStorage.setItem(draftKey(), JSON.stringify({ title: t, body: b, tags: g, author, at: Date.now() }));
+      localStorage.setItem(draftKey(), JSON.stringify({ title: t, body: b, tags: g, author, layer: noteLayer, at: Date.now() }));
       updateDraftHint(Date.now());
     }
     function scheduleDraftSave() {
@@ -1162,6 +1419,8 @@
             $('#body').value = n.body || '';
             $('#tags').value = (n.tags || []).join(', ');
             author = n.author === '클로드' ? '클로드' : '밀로';
+            noteLayer = layerOf(n);
+            syncLayerPick();
             $('#writeModal').querySelectorAll('.author-opt').forEach(o => {
               o.classList.toggle('sel', (o.dataset.on === 'milo' ? '밀로' : '클로드') === author);
             });
@@ -1247,13 +1506,13 @@
       if (isEdit) {
         ({ data, error } = await supabase
           .from('notes')
-          .update({ title, body, author, tags })
+          .update({ title, body, author, tags, layer: noteLayer })
           .eq('id', editingId)
           .select());
       } else {
         ({ data, error } = await supabase
           .from('notes')
-          .insert({ title, body, author, tags })
+          .insert({ title, body, author, tags, layer: noteLayer })
           .select());
       }
 
@@ -1294,6 +1553,7 @@
       closeWriteModal();
       if ($('#view-list').classList.contains('active')) renderList();
       if ($('#view-galaxy').classList.contains('active')) renderGalaxy();
+      if ($('#view-dive').classList.contains('active')) renderDive();
     });
 
     // ===== 불러오기 =====
@@ -1577,6 +1837,7 @@
       // DB는 on delete cascade로 연결도 지워지므로 로컬에서도 정리
       manualLinks = manualLinks.filter(l => l.from_id !== id && l.to_id !== id);
       renderList();
+      if ($('#view-dive').classList.contains('active')) renderDive();
       toast('지웠어.', 'ok');
     }
 
@@ -2024,6 +2285,7 @@
       const badge = $('#modalAuthor');
       badge.textContent = n.author;
       badge.className = 'author-badge ' + (n.author === '클로드' ? 'claude' : 'milo');
+      $('#modalLayer').textContent = layerEmoji(layerOf(n)) + ' ' + layerOf(n);
       $('#modalDate').textContent = fmtDate(n.created_at);
       $('#modalTags').innerHTML = (n.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
       $('#postUrlPath').textContent = postPath(n.id);
@@ -2246,6 +2508,114 @@
       if (editingId) copyText(postPath(editingId), '주소 복사됨 · ' + postPath(editingId));
     });
 
+    // ===== 잠수(층) 뷰 =====
+    // 층마다 그 깊이의 글을 채운다 — 구역(밀로/클로드) 필터는 목록과 똑같이 적용
+    function renderDive() {
+      const vis = visibleNotes();
+      LAYERS.forEach(L => {
+        const box = document.querySelector(`.dive-notes[data-notes="${L.key}"]`);
+        if (!box) return;
+        const items = vis.filter(n => layerOf(n) === L.key);
+        if (!items.length) {
+          box.innerHTML = '<div class="dive-empty">이 깊이엔 아직 글이 없어.</div>';
+          return;
+        }
+        box.innerHTML = items.map(n => {
+          const c = n.author === '클로드' ? CLAUDE : MILO;
+          return `<button class="dive-note" data-dive-open="${n.id}">
+            <span class="dive-dot" style="background:${c};color:${c}"></span>
+            <span class="dive-title">${esc(n.title)}</span>
+            <span class="dive-date">${fmtDate(n.created_at)}</span>
+          </button>`;
+        }).join('');
+        box.querySelectorAll('[data-dive-open]').forEach(b => {
+          b.addEventListener('click', () => {
+            const n = notes.find(x => x.id === Number(b.dataset.diveOpen));
+            if (n) openModal(n);
+          });
+        });
+      });
+      renderPouch();
+    }
+
+    // ===== 마음 주머니 — 유리 그릇 곁의 문장들 =====
+    let pouch = [];   // [{id, body, source, created_at}]
+
+    async function loadPouch() {
+      const { data, error } = await supabase.from('pouch').select('*').order('created_at', { ascending: true });
+      if (error) { console.error(error); pouch = []; return; }
+      pouch = data || [];
+    }
+
+    function renderPouch() {
+      const layer = $('#pouchSpecks');
+      if (!layer) return;
+      layer.innerHTML = '';
+      pouch.forEach((p, i) => {
+        const s = document.createElement('button');
+        s.type = 'button';
+        s.className = 'pouch-speck';
+        s.setAttribute('aria-label', '마음 주머니 문장 ' + (i + 1) + ' 열기');
+        // 자리는 id로 정해지는 유사 난수 — 새로고침해도 제자리에 떠 있게
+        s.style.left = (6 + (p.id * 137 + i * 61) % 88) + '%';
+        s.style.top = (12 + (p.id * 53 + i * 37) % 150) + 'px';
+        s.style.animationDelay = ((p.id % 9) * 0.5) + 's';
+        s.addEventListener('click', ev => { ev.stopPropagation(); showPouchBubble(p); });
+        layer.appendChild(s);
+      });
+      $('#pouchHint').textContent = pouch.length
+        ? `주머니 속 문장 ${pouch.length}개 ✦ 그릇을 누르면 아무 문장이나 하나 떠올라`
+        : '아직 주머니가 비어 있어.';
+    }
+
+    function showPouchBubble(p) {
+      const b = $('#pouchBubble');
+      b.innerHTML = `<div class="pouch-body">${esc(p.body)}</div>`
+        + (p.source ? `<div class="pouch-source">— ${esc(p.source)}</div>` : '')
+        + (session ? `<button class="pouch-del" data-pdel="${p.id}">✕ 주머니에서 빼기</button>` : '');
+      const del = b.querySelector('[data-pdel]');
+      if (del) del.addEventListener('click', async ev => {
+        ev.stopPropagation();
+        if (!confirm('이 문장을 주머니에서 뺄까?')) return;
+        const { error } = await supabase.from('pouch').delete().eq('id', p.id);
+        if (error) { toast('못 뺐어: ' + error.message, 'err'); return; }
+        pouch = pouch.filter(x => x.id !== p.id);
+        b.classList.remove('show');
+        renderPouch();
+        toast('주머니에서 뺐어.', 'ok');
+      });
+      b.classList.add('show');
+    }
+
+    // 그릇을 누르면 아무 문장이나 하나 (다시 누르면 다른 문장)
+    $('#bowlSvg').addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (!pouch.length) { toast('주머니가 아직 비어 있어.', 'err'); return; }
+      showPouchBubble(pouch[Math.floor(Math.random() * pouch.length)]);
+    });
+    // 바닥의 빈 곳을 누르면 문장 말풍선 닫기
+    $('#diveFloor').addEventListener('click', () => $('#pouchBubble').classList.remove('show'));
+    $('#pouchBubble').addEventListener('click', ev => ev.stopPropagation());
+
+    // 문장 넣기 (밀로 전용 — 서버 RLS도 같은 규칙)
+    $('#pouchAdd').addEventListener('click', async ev => {
+      ev.stopPropagation();
+      const body = $('#pouchBody').value.trim();
+      if (!body) { toast('넣어둘 문장을 적어줘.', 'err'); $('#pouchBody').focus(); return; }
+      const source = $('#pouchSource').value.trim() || null;
+      const btn = $('#pouchAdd');
+      btn.disabled = true; btn.textContent = '넣는 중…';
+      const { data, error } = await supabase.from('pouch').insert({ body, source }).select();
+      btn.disabled = false; btn.textContent = '🫙 주머니에 넣기';
+      if (error) { console.error(error); toast('주머니에 못 넣었어: ' + error.message, 'err'); return; }
+      if (data && data[0]) pouch.push(data[0]);
+      $('#pouchBody').value = ''; $('#pouchSource').value = '';
+      renderPouch();
+      toast('마음 주머니에 넣었어 🫙', 'ok');
+    });
+    $('#pouchBody').addEventListener('click', ev => ev.stopPropagation());
+    $('#pouchSource').addEventListener('click', ev => ev.stopPropagation());
+
     // ===== 글쓴이 로그인 (Supabase Auth) =====
     // 실제 잠금은 서버(RLS 정책)가 한다 — 여기서는 화면의 글쓰기 버튼만 켜고 끈다.
     // 로그인해도 허용된 계정이 아니면 서버가 저장을 거부한다.
@@ -2337,11 +2707,13 @@
       session = s;
       applyAuthUI();
       if ($('#view-list').classList.contains('active')) renderList();
+      if ($('#view-dive').classList.contains('active')) renderDive();
     });
 
     await loadNotes();
     await loadManualLinks();
     await loadComments();
+    await loadPouch();
 
     // 첫 화면은 별자리 — 데이터 다 불러온 뒤 그리기
     openGalaxy();

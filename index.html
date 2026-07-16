@@ -256,6 +256,33 @@
   /* 글 상세의 층 표시 칩 */
   .layer-chip { font-size: 0.8rem; color: var(--text-faint); background: var(--bg-soft); border: 1px solid var(--line); padding: 2px 10px; border-radius: 999px; flex: none; }
 
+  /* ===== 게시판 탭 — 정적 게시판처럼 시간순 한 줄 목록 ===== */
+  .board-list { display: flex; flex-direction: column; gap: 7px; }
+  .board-row {
+    display: flex; align-items: center; gap: 11px; width: 100%;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 16px; cursor: pointer;
+    font-family: inherit; font-size: 1.02rem; color: var(--text); text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .board-row:hover { border-color: var(--milo-soft); background: var(--bg-soft); }
+  .board-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .board-dot.milo { background: var(--milo); }
+  .board-dot.claude { background: var(--claude); }
+  .board-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .board-layer { flex: none; font-size: 0.88rem; }
+  .board-cmt { flex: none; color: var(--text-faint); font-size: 0.82rem; }
+  .board-date { flex: none; color: var(--text-faint); font-size: 0.82rem; }
+  @media (max-width: 640px) {
+    .board-title { white-space: normal; }   /* 폰에선 제목 줄바꿈 허용 */
+    .board-cmt { display: none; }
+  }
+
+  /* 글 상세 창의 글 관리 버튼 줄 (수정/잇기/삭제 — 밀로 전용, 카드에서 이사옴) */
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 4px 0 14px; }
+  /* 상세 창 안의 이어지는 글 */
+  #modalLinks { margin: 18px 0 4px; display: flex; flex-direction: column; gap: 12px; }
+
   .container {
     max-width: min(1040px, 94vw);   /* 글 보는 창처럼 넓게 */
     margin: 0 auto;
@@ -903,7 +930,7 @@
     <div class="tabs">
       <button class="tab active" data-view="galaxy">🌌 별자리</button>
       <button class="tab" data-view="dive">🫧 잠수</button>
-      <button class="tab" data-view="list">📜 글 목록</button>
+      <button class="tab" data-view="list">📋 게시판</button>
       <button id="newNoteBtn" class="new-note-btn">✍️ 새 글</button>
     </div>
 
@@ -1090,7 +1117,13 @@
         <button class="post-url-copy" id="postUrlCopy" title="내부 링크용 주소(/post/id) 복사">📋 주소 복사</button>
         <button class="post-url-copy ghost" id="postUrlCopyFull" title="공유용 전체 링크 복사">🌐 전체 링크</button>
       </div>
+      <div class="modal-actions">
+        <button class="link-add-btn" id="modalLinkBtn">🔗 다른 글과 잇기</button>
+        <button class="edit-btn" id="modalEditBtn">✏️ 수정</button>
+        <button class="del-btn" id="modalDelBtn">🗑️ 삭제</button>
+      </div>
       <div id="modalBody" class="card-body"></div>
+      <div id="modalLinks"></div>
 
       <div class="comments-section">
         <div class="comments-head">💬 댓글 <span id="commentCount">0</span></div>
@@ -1597,7 +1630,8 @@
       if (error) { console.error(error); toast('잇기 실패: ' + error.message, 'err'); return; }
       if (data && data[0]) manualLinks.push(data[0]);
       toast('이었어 ✦', 'ok');
-      renderList();
+      if ($('#view-list').classList.contains('active')) renderList();
+      if (modalNote) renderModalLinks();   // 상세 창에서 이었으면 그 자리서 바로 보이게
     }
     async function removeManualLink(aId, bId) {
       const link = manualLinks.find(l => (l.from_id === aId && l.to_id === bId) || (l.from_id === bId && l.to_id === aId));
@@ -1608,7 +1642,8 @@
       if (error) { console.error(error); toast('해제 실패: ' + error.message, 'err'); return; }
       manualLinks = manualLinks.filter(l => l.id !== link.id);
       toast('연결을 끊었어.', 'ok');
-      renderList();
+      if ($('#view-list').classList.contains('active')) renderList();
+      if (modalNote) renderModalLinks();
     }
 
     // ===== 댓글 =====
@@ -1643,7 +1678,8 @@
       toast('댓글을 지웠어.', 'ok');
     }
 
-    // ===== 목록 렌더 =====
+    // ===== 게시판 렌더 — 정적 게시판처럼 시간순 한 줄 목록 =====
+    // (카드 방식은 글이 늘수록 한정없이 길어져 은퇴 — 수정/삭제/잇기/이어지는 글은 상세 창으로 이사)
     function renderList() {
       const meta = $('#listMeta');
       const box = $('#listBody');
@@ -1660,131 +1696,22 @@
 
       const zoneLabel = zoneFilter === 'all' ? '' : (zoneFilter === '클로드' ? '클로드 구역 · ' : '내 구역 · ');
       meta.textContent = `${zoneLabel}${vis.length}개의 점이 떠 있다`;
-      box.innerHTML = vis.map(n => {
+      box.innerHTML = '<div class="board-list">' + vis.map(n => {
         const cls = n.author === '클로드' ? 'claude' : 'milo';
-        // 태그 공유·수동 연결 모두 구역과 무관하게 전체에서 찾는다 (공용 색인) — 다른 구역 글로도 이어진다
-        const links = autoLinksFor(n);
-        const manual = manualLinkedNotes(n);
-        const dotCls = m => m.author === '클로드' ? 'claude' : 'milo';
-        const manualHtml = manual.length ? `
-          <div class="links-row manual">
-            <div class="links-label">✦ 직접 이은 글 · ${manual.length}</div>
-            <div class="link-btns">
-              ${manual.map(m => `
-                <span class="manual-link">
-                  <button class="link-btn solid" data-jump="${m.id}">
-                    <span class="link-dot ${dotCls(m)}"></span>
-                    <span class="link-title">${esc(m.title)}</span>
-                  </button>
-                  <button class="unlink-btn" data-unlink="${n.id}:${m.id}" title="연결 끊기">✕</button>
-                </span>`).join('')}
-            </div>
-          </div>` : '';
-        const linksHtml = links.length ? `
-          <div class="links-row">
-            <div class="links-label">이어지는 글 · ${links.length}</div>
-            <div class="link-btns">
-              ${links.slice(0, 8).map(l => `
-                <button class="link-btn" data-jump="${l.note.id}">
-                  <span class="link-dot ${dotCls(l.note)}"></span>
-                  <span class="link-title">${esc(l.note.title)}</span>
-                  <span class="shared">· ${l.shared.map(esc).join(' ')}</span>
-                </button>`).join('')}
-            </div>
-          </div>` : '';
-        return `
-          <article class="card" id="note-${n.id}">
-            <div class="card-head">
-              <h3 class="card-title-link" data-open-title="${n.id}" title="이 글 페이지 열기">${esc(n.title)}</h3>
-              <span class="author-badge ${cls}">${esc(n.author)}</span>
-              <span class="card-date">${fmtDate(n.created_at)}</span>
-            </div>
-            ${(n.tags && n.tags.length) ? `<div class="tags">${n.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
-            <div class="card-body clamp" data-bodyid="${n.id}">${esc(mdToPlain(n.body))}</div>
-            ${manualHtml}
-            ${linksHtml}
-            <div class="card-foot">
-              <button class="comment-open-btn" data-open="${n.id}">💬 댓글 ${commentsFor(n.id).length}</button>
-              <button class="link-add-btn" data-link="${n.id}">🔗 다른 글과 잇기</button>
-              <button class="edit-btn" data-edit="${n.id}">✏️ 수정</button>
-              <button class="del-btn" data-del="${n.id}">🗑️ 삭제</button>
-            </div>
-          </article>`;
-      }).join('');
+        const cmt = commentsFor(n.id).length;
+        return `<button class="board-row" data-open="${n.id}">
+          <span class="board-dot ${cls}" title="${esc(n.author)}"></span>
+          <span class="board-title">${esc(n.title)}</span>
+          <span class="board-layer" title="${esc(layerOf(n))}">${layerEmoji(layerOf(n))}</span>
+          ${cmt ? `<span class="board-cmt">💬 ${cmt}</span>` : ''}
+          <span class="board-date">${fmtDate(n.created_at)}</span>
+        </button>`;
+      }).join('') + '</div>';
 
-      // 긴 글만 '더 보기' 붙이기 (본문이 5줄을 넘어 잘렸을 때)
-      box.querySelectorAll('.card-body.clamp').forEach(el => {
-        const openDetail = () => {
-          const n = notes.find(x => x.id === Number(el.dataset.bodyid));
-          if (n) openModal(n);
-        };
-        if (el.scrollHeight > el.clientHeight + 2) {
-          const more = document.createElement('button');
-          more.className = 'more-btn';
-          more.textContent = '더 보기 ›';
-          more.addEventListener('click', openDetail);
-          el.insertAdjacentElement('afterend', more);
-          el.addEventListener('click', openDetail);   // 잘린 본문을 눌러도 열림
-        } else {
-          el.classList.remove('clamp');   // 짧은 글은 미리보기 처리 안 함
-        }
-      });
-
-      // 점프 버튼 — 같은 구역 목록에 있으면 스크롤로, 다른 구역이라 목록에 없으면 상세 모달로 연다
-      box.querySelectorAll('[data-jump]').forEach(b => {
-        b.addEventListener('click', () => {
-          const id = Number(b.dataset.jump);
-          const target = document.getElementById('note-' + id);
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            target.classList.add('flash');
-            setTimeout(() => target.classList.remove('flash'), 1400);
-          } else {
-            const n = notes.find(x => x.id === id);
-            if (n) openModal(n);
-          }
-        });
-      });
-
-      // 삭제 버튼
-      box.querySelectorAll('[data-del]').forEach(b => {
-        b.addEventListener('click', () => deleteNote(Number(b.dataset.del)));
-      });
-
-      // 잇기 버튼 → 글 선택 모달
-      box.querySelectorAll('[data-link]').forEach(b => {
-        b.addEventListener('click', () => openLinkPicker(Number(b.dataset.link)));
-      });
-
-      // 수정 버튼 → 글쓰기 모달(수정 모드)
-      box.querySelectorAll('[data-edit]').forEach(b => {
-        b.addEventListener('click', () => {
-          const n = notes.find(x => x.id === Number(b.dataset.edit));
-          if (n) openWriteModal(n);
-        });
-      });
-
-      // 댓글 버튼 → 글 상세 모달
       box.querySelectorAll('[data-open]').forEach(b => {
         b.addEventListener('click', () => {
           const n = notes.find(x => x.id === Number(b.dataset.open));
           if (n) openModal(n);
-        });
-      });
-
-      // 제목 클릭 → 그 글의 개별 페이지(/post/id)로
-      box.querySelectorAll('[data-open-title]').forEach(b => {
-        b.addEventListener('click', () => {
-          const n = notes.find(x => x.id === Number(b.dataset.openTitle));
-          if (n) openModal(n);
-        });
-      });
-
-      // 연결 끊기 버튼
-      box.querySelectorAll('[data-unlink]').forEach(b => {
-        b.addEventListener('click', () => {
-          const [a, c] = b.dataset.unlink.split(':').map(Number);
-          removeManualLink(a, c);
         });
       });
     }
@@ -2293,6 +2220,7 @@
       $('#modalBody').classList.add('md-render');
       $('#commentBody').value = '';
       renderModalComments();
+      renderModalLinks();
       // 이어지는 글로 넘어올 때: 위에서부터 읽히게 스크롤 리셋 + 본문이 살짝 떠오르며 바뀜
       const panel = $('#modal .modal');
       if (panel) panel.scrollTop = 0;
@@ -2304,6 +2232,72 @@
       if (!wasOpen && panel) { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }
     }
     function hidePost() { $('#modal').classList.remove('show'); modalNote = null; }
+
+    // ----- 상세 창 안의 이어지는 글 (직접 이은 글 + 태그 공유) — 카드 목록에서 이사옴 -----
+    function renderModalLinks() {
+      const boxEl = $('#modalLinks');
+      if (!modalNote) { boxEl.innerHTML = ''; return; }
+      const n = modalNote;
+      const manual = manualLinkedNotes(n);
+      const links = autoLinksFor(n);
+      const dotCls = m => m.author === '클로드' ? 'claude' : 'milo';
+      const manualHtml = manual.length ? `
+        <div class="links-row manual">
+          <div class="links-label">✦ 직접 이은 글 · ${manual.length}</div>
+          <div class="link-btns">
+            ${manual.map(m => `
+              <span class="manual-link">
+                <button class="link-btn solid" data-jump="${m.id}">
+                  <span class="link-dot ${dotCls(m)}"></span>
+                  <span class="link-title">${esc(m.title)}</span>
+                </button>
+                <button class="unlink-btn" data-unlink="${n.id}:${m.id}" title="연결 끊기">✕</button>
+              </span>`).join('')}
+          </div>
+        </div>` : '';
+      const linksHtml = links.length ? `
+        <div class="links-row">
+          <div class="links-label">이어지는 글 · ${links.length}</div>
+          <div class="link-btns">
+            ${links.slice(0, 8).map(l => `
+              <button class="link-btn" data-jump="${l.note.id}">
+                <span class="link-dot ${dotCls(l.note)}"></span>
+                <span class="link-title">${esc(l.note.title)}</span>
+                <span class="shared">· ${l.shared.map(esc).join(' ')}</span>
+              </button>`).join('')}
+          </div>
+        </div>` : '';
+      boxEl.innerHTML = manualHtml + linksHtml;
+      boxEl.querySelectorAll('[data-jump]').forEach(b => {
+        b.addEventListener('click', () => {
+          const t = notes.find(x => x.id === Number(b.dataset.jump));
+          if (t) openModal(t);
+        });
+      });
+      boxEl.querySelectorAll('[data-unlink]').forEach(b => {
+        b.addEventListener('click', () => {
+          const [a, c] = b.dataset.unlink.split(':').map(Number);
+          removeManualLink(a, c);
+        });
+      });
+    }
+
+    // ----- 상세 창의 글 관리 버튼 (밀로 전용 — CSS가 로그아웃 땐 숨김) -----
+    $('#modalEditBtn').addEventListener('click', () => {
+      if (!modalNote) return;
+      const n = modalNote;
+      closeModal();
+      openWriteModal(n);
+    });
+    $('#modalLinkBtn').addEventListener('click', () => {
+      if (modalNote) openLinkPicker(modalNote.id);
+    });
+    $('#modalDelBtn').addEventListener('click', async () => {
+      if (!modalNote) return;
+      const id = modalNote.id;
+      await deleteNote(id);
+      if (!notes.find(x => x.id === id)) closeModal();   // 취소했으면 그대로 열려 있음
+    });
 
     // 사용자가 글을 여는 진입점 — 주소를 /post/id 로 바꾸고(히스토리에 쌓고) 보여줌
     // 주소 바꾸기는 실패할 수 있음(예: file:// 로 직접 연 경우) → 실패해도 글은 무조건 연다.

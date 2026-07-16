@@ -38,37 +38,38 @@ create table comments (
 
 -- RLS: 읽기는 모두, 글쓰기·수정·삭제는 밀로 계정(Supabase Auth 로그인)만.
 -- 댓글은 방문자도 작성 가능, 삭제만 밀로.
--- (2026-07 적용 — 마이그레이션 lock_writes_to_milo 로 운영 DB에 반영됨)
+-- 잠금 기준은 밀로 계정의 고유 ID(auth.uid) — 이메일 비교보다 안전하고 이메일이 바뀌어도 유지됨.
+-- (2026-07 적용 — 마이그레이션 lock_writes_to_milo → lock_writes_to_milo_uid 로 운영 DB에 반영됨)
 alter table notes enable row level security;
 alter table manual_links enable row level security;
 alter table comments enable row level security;
 
 create policy "anyone can read" on notes for select using (true);
 create policy "milo can insert" on notes for insert to authenticated
-  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  with check (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 create policy "milo can update" on notes for update to authenticated
-  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com')
-  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  using (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid)
+  with check (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 create policy "milo can delete" on notes for delete to authenticated
-  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  using (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 
 create policy "anyone can read" on manual_links for select using (true);
 create policy "milo can insert" on manual_links for insert to authenticated
-  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  with check (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 create policy "milo can delete" on manual_links for delete to authenticated
-  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  using (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 
 create policy "anyone can read" on comments for select using (true);
 create policy "anyone can insert" on comments for insert with check (true);
 create policy "milo can delete" on comments for delete to authenticated
-  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  using (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 
 alter table pouch enable row level security;
 create policy "anyone can read" on pouch for select using (true);
 create policy "milo can insert" on pouch for insert to authenticated
-  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  with check (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 create policy "milo can update" on pouch for update to authenticated
-  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com')
-  with check ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  using (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid)
+  with check (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);
 create policy "milo can delete" on pouch for delete to authenticated
-  using ((auth.jwt()->>'email') = 'norang.hobak@gmail.com');
+  using (auth.uid() = '44071c8f-5b7a-4446-85e9-9a509b8088d4'::uuid);

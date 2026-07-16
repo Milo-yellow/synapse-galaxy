@@ -76,6 +76,7 @@ function mdToPlain(src) {
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1$2')
     .replace(/`(.+?)`/g, '$1')
+    .replace(/!\[.*?\]\(.+?\)/g, '')
     .replace(/\[(.+?)\]\(.+?\)/g, '$1')
     .replace(/^\s*[-*_]{3,}\s*$/gm, '');
 }
@@ -110,6 +111,8 @@ function renderInline(text) {
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  // 이미지가 링크 규칙에 먼저 잡히지 않도록 이미지를 앞에 처리한다
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, u) => `<img src="${safeHref(u)}" alt="${alt}" loading="lazy">`);
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, t, u) => `<a href="${withBasePath(safeHref(u))}">${t}</a>`);
   return out;
 }

@@ -1181,13 +1181,15 @@
           <button type="button" data-md="ul" title="목록">• 목록</button>
           <button type="button" data-md="quote" title="인용">❝ 인용</button>
           <button type="button" data-md="link" title="링크">🔗 링크</button>
+          <button type="button" id="mdImageBtn" title="사진 넣기">🖼 사진</button>
           <button type="button" class="md-preview-toggle" id="mdPreviewToggle">👁 미리보기</button>
         </div>
+        <input type="file" id="imgFile" accept="image/*" multiple hidden />
         <div class="md-editor" id="mdEditor">
           <textarea id="body" placeholder="여기에 담는다…  (마크다운으로 꾸밀 수 있어)"></textarea>
           <div class="md-preview md-render" id="mdPreview"></div>
         </div>
-        <div class="md-help">**굵게** · # 제목 · - 목록 · &gt; 인용 — 위 버튼을 눌러도 돼.</div>
+        <div class="md-help">**굵게** · # 제목 · - 목록 · &gt; 인용 — 위 버튼을 눌러도 돼. 사진은 🖼 버튼이나 붙여넣기·드래그로.</div>
         <div class="md-draft-hint" id="draftHint"></div>
       </div>
       <div class="field">
@@ -1309,6 +1311,7 @@
         .replace(/\*\*(.+?)\*\*/g, '$1')            // 굵게
         .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1$2')// 기울임
         .replace(/`(.+?)`/g, '$1')                  // 코드
+        .replace(/!\[.*?\]\(.+?\)/g, '')            // 이미지 (링크보다 먼저)
         .replace(/\[(.+?)\]\(.+?\)/g, '$1')         // 링크
         .replace(/^\s*[-*_]{3,}\s*$/gm, '');        // 구분선
     }
@@ -1635,6 +1638,85 @@
     }
     $('#mdToolbar').querySelectorAll('[data-md]').forEach(b => {
       b.addEventListener('click', () => applyMd(b.dataset.md));
+    });
+
+    // ===== 사진 넣기 =====
+    // 사진은 Supabase 저장소(post-images 버킷)에 올라간다 — 누구나 볼 수 있지만
+    // 올리기는 로그인한 사람만 된다. 올라가면 본문 커서 자리에 ![사진](주소)가 끼워진다.
+    // 🖼 버튼, 클립보드 붙여넣기, 드래그해서 놓기 세 경로 모두 uploadImage()로 모인다.
+    const IMG_BUCKET = 'post-images';
+    const IMG_MAX_SIDE = 1600;               // 폰 사진은 크니까 업로드 전에 긴 변을 이 크기로 줄인다
+    const IMG_MAX_BYTES = 8 * 1024 * 1024;   // 버킷 쪽 제한(8MB)과 같은 값
+
+    function insertAtCursor(text) {
+      const ta = $('#body');
+      const s = ta.selectionStart, e = ta.selectionEnd;
+      ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+      ta.setSelectionRange(s + text.length, s + text.length);
+      renderPreview();
+      scheduleDraftSave();
+    }
+    function swapPlaceholder(ph, text) {
+      const ta = $('#body');
+      ta.value = ta.value.replace(ph, text);
+      renderPreview();
+      scheduleDraftSave();
+    }
+
+    // 큰 사진은 캔버스로 줄여 webp로 변환한다. gif는 움직임이 깨지니 원본 그대로 두고,
+    // 변환에 실패했거나 오히려 커지면 원본을 쓴다.
+    async function shrinkImage(file) {
+      if (file.type === 'image/gif') return file;
+      const bmp = await createImageBitmap(file).catch(() => null);
+      if (!bmp) return file;
+      const scale = Math.min(1, IMG_MAX_SIDE / Math.max(bmp.width, bmp.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bmp.width * scale);
+      canvas.height = Math.round(bmp.height * scale);
+      canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.85));
+      return (blob && blob.size < file.size) ? blob : file;
+    }
+
+    async function uploadImage(file) {
+      if (!file || !file.type.startsWith('image/')) { toast('이미지 파일만 넣을 수 있어.', 'err'); return; }
+      if (!session) { toast('사진을 올리려면 먼저 들어와야 해.', 'err'); return; }
+      const ph = `⏳ 사진 올리는 중(${Math.random().toString(36).slice(2, 7)})…`;
+      insertAtCursor(ph);
+      try {
+        const blob = await shrinkImage(file);
+        if (blob.size > IMG_MAX_BYTES) throw new Error('사진이 너무 커. 8MB까지만 돼.');
+        const ext = blob.type === 'image/webp' ? 'webp'
+          : (file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg');
+        const path = `${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+        const { error } = await supabase.storage.from(IMG_BUCKET)
+          .upload(path, blob, { contentType: blob.type || file.type });
+        if (error) throw error;
+        const { data } = supabase.storage.from(IMG_BUCKET).getPublicUrl(path);
+        swapPlaceholder(ph, `![사진](${data.publicUrl})`);
+        toast('사진을 넣었어 ✦', 'ok');
+      } catch (err) {
+        console.error(err);
+        swapPlaceholder(ph, '');
+        toast('사진 올리기 실패: ' + (err.message || err), 'err');
+      }
+    }
+
+    $('#mdImageBtn').addEventListener('click', () => $('#imgFile').click());
+    $('#imgFile').addEventListener('change', e => {
+      [...e.target.files].forEach(uploadImage);
+      e.target.value = '';
+    });
+    $('#body').addEventListener('paste', e => {
+      const files = [...(e.clipboardData?.items || [])]
+        .filter(i => i.kind === 'file' && i.type.startsWith('image/'))
+        .map(i => i.getAsFile()).filter(Boolean);
+      if (files.length) { e.preventDefault(); files.forEach(uploadImage); }
+    });
+    $('#body').addEventListener('dragover', e => e.preventDefault());
+    $('#body').addEventListener('drop', e => {
+      const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
+      if (files.length) { e.preventDefault(); files.forEach(uploadImage); }
     });
 
     // ===== 저장 =====

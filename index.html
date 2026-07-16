@@ -178,6 +178,39 @@
   .dive-date { color: rgba(225,232,255,0.4); font-size: 0.8rem; flex: none; }
   .dive-empty { text-align: center; color: rgba(225,232,255,0.42); font-size: 0.9rem; padding: 10px; }
 
+  /* 잠수 등장 효과 — 스크롤로 내려가면 글이 물속에서 떠오르듯 */
+  .dive-head, .dive-note, .bowl-scene, .pouch-form {
+    opacity: 0; transform: translateY(18px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .dive-head.seen, .dive-note.seen, .bowl-scene.seen, .pouch-form.seen { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .dive-head, .dive-note, .bowl-scene, .pouch-form { opacity: 1; transform: none; transition: none; }
+  }
+
+  /* 수심계 — 지금 어느 깊이인지, 누르면 그 층으로 */
+  .depth-gauge {
+    position: fixed; right: 14px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px; z-index: 40;
+  }
+  .depth-gauge button {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(10,15,30,0.78);
+    cursor: pointer; font-size: 1.05rem; line-height: 1;
+    opacity: 0.5; transition: all 0.2s;
+  }
+  .depth-gauge button:hover { opacity: 0.9; }
+  .depth-gauge button.here {
+    opacity: 1; border-color: var(--milo-soft);
+    box-shadow: 0 0 12px rgba(111,102,212,0.45);
+    transform: scale(1.12);
+  }
+  @media (max-width: 700px) {
+    .depth-gauge { right: 5px; gap: 6px; }
+    .depth-gauge button { width: 31px; height: 31px; font-size: 0.85rem; }
+  }
+
   /* ----- 맨 바닥: 유리 그릇과 마음 주머니 ----- */
   .dive-floor {
     position: relative; text-align: center;
@@ -970,6 +1003,13 @@
 
     <!-- 잠수 — 층층 구조: 아래로 내려갈수록 깊어진다 -->
     <section id="view-dive" class="view">
+      <nav class="depth-gauge" id="depthGauge" aria-label="수심계 — 누르면 그 층으로">
+        <button data-goto="관측소" title="관측소">🔭</button>
+        <button data-goto="표면" title="표면">☀️</button>
+        <button data-goto="중간층" title="중간층">🌾</button>
+        <button data-goto="심층" title="심층">🌊</button>
+        <button data-goto="바닥" title="가장 깊은 바닥">🫙</button>
+      </nav>
       <div class="dive">
         <section class="dive-layer" data-layer="관측소">
           <div class="dive-head">
@@ -2565,7 +2605,46 @@
         });
       });
       renderPouch();
+      observeDive();
     }
+
+    // ----- 잠수 등장 효과: 화면에 들어온 것부터 떠오르게 -----
+    let diveObserver = null;
+    function observeDive() {
+      if (diveObserver) diveObserver.disconnect();
+      diveObserver = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) { e.target.classList.add('seen'); diveObserver.unobserve(e.target); }
+        });
+      }, { threshold: 0.12 });
+      document.querySelectorAll('#view-dive .dive-head, #view-dive .dive-note, #view-dive .bowl-scene, #view-dive .pouch-form')
+        .forEach(el => { if (!el.classList.contains('seen')) diveObserver.observe(el); });
+    }
+
+    // ----- 수심계: 지금 어느 층인지 표시 + 누르면 그 층으로 -----
+    const gaugeTargets = {
+      '관측소': () => document.querySelector('.dive-layer[data-layer="관측소"]'),
+      '표면':   () => document.querySelector('.dive-layer[data-layer="표면"]'),
+      '중간층': () => document.querySelector('.dive-layer[data-layer="중간층"]'),
+      '심층':   () => document.querySelector('.dive-layer[data-layer="심층"]'),
+      '바닥':   () => $('#diveFloor'),
+    };
+    $('#depthGauge').querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        const el = gaugeTargets[b.dataset.goto]?.();
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    // 화면 세로 중앙에 걸린 층을 '지금 깊이'로 본다
+    const gaugeObserver = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const key = e.target.id === 'diveFloor' ? '바닥' : e.target.dataset.layer;
+        $('#depthGauge').querySelectorAll('button').forEach(b => b.classList.toggle('here', b.dataset.goto === key));
+      });
+    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+    document.querySelectorAll('.dive-layer').forEach(el => gaugeObserver.observe(el));
+    gaugeObserver.observe($('#diveFloor'));
 
     // ===== 마음 주머니 — 유리 그릇 곁의 문장들 =====
     let pouch = [];   // [{id, body, source, created_at}]

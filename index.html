@@ -218,8 +218,29 @@
     padding: 80px 26px 60px; min-height: 460px;
   }
   .dive-floor .dive-head h3 { color: #dfe7ff; }
+  /* 달빛 기둥 — 아주 깊은 곳까지 희미하게 스며드는 빛 */
+  .dive-floor::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(112deg, transparent 34%, rgba(150,195,255,0.045) 40%, transparent 47%),
+      linear-gradient(78deg, transparent 52%, rgba(150,195,255,0.035) 58%, transparent 65%);
+  }
   .bowl-scene { position: relative; max-width: 640px; margin: 30px auto 0; min-height: 300px; }
-  .bowl-svg { width: 260px; height: auto; display: block; margin: 40px auto 0; cursor: pointer; }
+  .bowl-svg { width: min(430px, 92%); height: auto; display: block; margin: 40px auto 0; cursor: pointer; }
+  /* 해초 — 뿌리를 축으로 천천히 흔들린다 */
+  .kelp {
+    transform-box: fill-box; transform-origin: 50% 100%;
+    animation: kelp-sway 7s ease-in-out infinite;
+  }
+  .kelp.k2 { animation-duration: 8.5s; animation-delay: 1.2s; }
+  .kelp.k3 { animation-duration: 6s; animation-delay: 2.4s; }
+  @keyframes kelp-sway {
+    0%, 100% { transform: rotate(-3.2deg); }
+    50% { transform: rotate(3.2deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kelp, #pouchFish, .bowl-bubble, .pouch-speck { animation: none; }
+  }
   #pouchFish { animation: fish-swim 9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes fish-swim {
     0%, 100% { transform: translate(0, 0); }
@@ -1067,33 +1088,56 @@
           <div class="bowl-scene">
             <div id="pouchSpecks"></div>
             <div class="pouch-bubble" id="pouchBubble"></div>
-            <svg class="bowl-svg" id="bowlSvg" viewBox="0 0 320 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="물고기가 사는 유리 그릇 — 누르면 주머니 속 문장 하나가 떠오른다">
+            <svg class="bowl-svg" id="bowlSvg" viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="물고기가 사는 유리 그릇 — 누르면 주머니 속 문장 하나가 떠오른다">
+              <!-- 문장이 쌓일수록 밝아지는 그릇 발광 (renderPouch가 세기를 정함) -->
+              <ellipse id="bowlGlow" cx="260" cy="150" rx="150" ry="110" fill="url(#glowGrad)" opacity="0.1"/>
+              <defs>
+                <radialGradient id="glowGrad">
+                  <stop offset="0%" stop-color="rgba(255,236,190,0.55)"/>
+                  <stop offset="60%" stop-color="rgba(255,225,160,0.16)"/>
+                  <stop offset="100%" stop-color="rgba(255,225,160,0)"/>
+                </radialGradient>
+              </defs>
               <!-- 모래 바닥 -->
-              <ellipse cx="160" cy="228" rx="150" ry="16" fill="rgba(90,110,150,0.14)"/>
+              <ellipse cx="260" cy="238" rx="245" ry="16" fill="rgba(90,110,150,0.14)"/>
+              <!-- 돌멩이와 조개 -->
+              <ellipse cx="120" cy="234" rx="14" ry="7" fill="rgba(120,135,175,0.28)"/>
+              <ellipse cx="143" cy="238" rx="8" ry="4.5" fill="rgba(120,135,175,0.2)"/>
+              <ellipse cx="398" cy="236" rx="11" ry="6" fill="rgba(120,135,175,0.25)"/>
+              <path d="M424 238 q4 -9 9 0 q-2 3 -4.5 3 q-2.5 0 -4.5 -3 z" fill="rgba(215,190,170,0.35)"/>
+              <path d="M88 240 l4 -7 l4 7 z" fill="rgba(140,155,195,0.22)"/>
+              <!-- 해초 — 왼쪽 무리 -->
+              <path class="kelp" d="M70 238 q-8 -30 4 -56 q9 -20 2 -38" stroke="rgba(96,180,140,0.5)" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path class="kelp k2" d="M92 240 q10 -26 0 -50 q-7 -18 1 -34" stroke="rgba(110,195,150,0.4)" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+              <path class="kelp k3" d="M52 240 q6 -20 -2 -40" stroke="rgba(96,180,140,0.32)" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <!-- 해초 — 오른쪽 무리 -->
+              <path class="kelp k2" d="M448 238 q10 -32 -3 -60 q-8 -18 0 -34" stroke="rgba(96,180,140,0.48)" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path class="kelp k3" d="M428 240 q-9 -24 2 -46 q6 -14 0 -28" stroke="rgba(110,195,150,0.38)" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+              <path class="kelp" d="M470 240 q-5 -22 3 -42" stroke="rgba(96,180,140,0.3)" stroke-width="3" fill="none" stroke-linecap="round"/>
               <!-- 그릇 속 물 -->
-              <clipPath id="bowlClip"><circle cx="160" cy="140" r="76"/></clipPath>
+              <clipPath id="bowlClip"><circle cx="260" cy="150" r="76"/></clipPath>
               <g clip-path="url(#bowlClip)">
-                <rect x="80" y="96" width="160" height="124" fill="rgba(90,160,230,0.16)"/>
-                <ellipse cx="160" cy="98" rx="76" ry="7" fill="rgba(160,210,255,0.22)"/>
+                <rect x="180" y="106" width="160" height="124" fill="rgba(90,160,230,0.16)"/>
+                <ellipse cx="260" cy="108" rx="76" ry="7" fill="rgba(160,210,255,0.22)"/>
                 <!-- 물방울 -->
-                <circle class="bowl-bubble" cx="146" cy="176" r="2.4" fill="rgba(210,235,255,0.5)"/>
-                <circle class="bowl-bubble b2" cx="172" cy="184" r="1.8" fill="rgba(210,235,255,0.45)"/>
-                <circle class="bowl-bubble b3" cx="160" cy="180" r="1.4" fill="rgba(210,235,255,0.4)"/>
+                <circle class="bowl-bubble" cx="246" cy="186" r="2.4" fill="rgba(210,235,255,0.5)"/>
+                <circle class="bowl-bubble b2" cx="272" cy="194" r="1.8" fill="rgba(210,235,255,0.45)"/>
+                <circle class="bowl-bubble b3" cx="260" cy="190" r="1.4" fill="rgba(210,235,255,0.4)"/>
                 <!-- 물고기 -->
                 <g id="pouchFish">
-                  <path d="M138 152 q13 -11 30 0 q-13 11 -30 0 z" fill="#E8A54B"/>
-                  <path d="M138 152 l-10 -7 l0 14 z" fill="#D98F33"/>
-                  <circle cx="162" cy="150" r="1.6" fill="#3a2410"/>
+                  <path d="M238 162 q13 -11 30 0 q-13 11 -30 0 z" fill="#E8A54B"/>
+                  <path d="M238 162 l-10 -7 l0 14 z" fill="#D98F33"/>
+                  <circle cx="262" cy="160" r="1.6" fill="#3a2410"/>
                 </g>
                 <!-- 그릇 안에 든 바닷물풀 -->
-                <path d="M120 214 q-3 -18 4 -30 M132 216 q2 -14 -2 -24" stroke="rgba(110,190,150,0.4)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                <path class="kelp k3" d="M220 224 q-3 -18 4 -30 M232 226 q2 -14 -2 -24" stroke="rgba(110,190,150,0.4)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
               </g>
               <!-- 유리 몸체 -->
-              <circle cx="160" cy="140" r="76" fill="rgba(170,210,255,0.05)" stroke="rgba(190,220,255,0.5)" stroke-width="2.5"/>
+              <circle cx="260" cy="150" r="76" fill="rgba(170,210,255,0.05)" stroke="rgba(190,220,255,0.5)" stroke-width="2.5"/>
               <!-- 입구 테 -->
-              <ellipse cx="160" cy="72" rx="34" ry="8" fill="none" stroke="rgba(190,220,255,0.55)" stroke-width="2.5"/>
+              <ellipse cx="260" cy="82" rx="34" ry="8" fill="none" stroke="rgba(190,220,255,0.55)" stroke-width="2.5"/>
               <!-- 유리 하이라이트 -->
-              <path d="M104 118 a62 62 0 0 1 26 -34" stroke="rgba(255,255,255,0.35)" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M204 128 a62 62 0 0 1 26 -34" stroke="rgba(255,255,255,0.35)" stroke-width="3" fill="none" stroke-linecap="round"/>
             </svg>
             <div class="pouch-hint" id="pouchHint"></div>
           </div>
@@ -2811,6 +2855,9 @@
       $('#pouchHint').textContent = pouch.length
         ? `주머니 속 문장 ${pouch.length}개 ✦ 그릇을 누르면 아무 문장이나 하나 떠올라`
         : '아직 주머니가 비어 있어.';
+      // 문장이 쌓일수록 그릇 주변이 밝아진다 — 아끼는 말들이 빛이 되는 자리
+      const glow = $('#bowlGlow');
+      if (glow) glow.setAttribute('opacity', Math.min(0.75, 0.08 + pouch.length * 0.045).toFixed(2));
     }
 
     function showPouchBubble(p) {

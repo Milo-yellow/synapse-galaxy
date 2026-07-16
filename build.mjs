@@ -10,7 +10,7 @@
 // 실행: node build.mjs (= npm run build). GitHub Pages 배포 워크플로가 push 때 자동으로 돌린다
 // (.github/workflows/deploy-pages.yml 참고).
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -168,9 +168,13 @@ function metaTagsBlock({ title, description, url, type, canonicalUrl }) {
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(description)}" />
 <meta property="og:url" content="${esc(url)}" />
-<meta name="twitter:card" content="summary" />
+<meta property="og:image" content="${SITE_URL}/og-image.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(description)}" />
+<meta name="twitter:image" content="${SITE_URL}/og-image.jpg" />
 `;
 }
 
@@ -530,6 +534,9 @@ async function main() {
 
   await writeFile(path.join(DIST_DIR, 'sitemap.xml'), buildSitemap(notes), 'utf-8');
   await writeFile(path.join(DIST_DIR, 'robots.txt'), buildRobots(), 'utf-8');
+
+  // 링크 공유 미리보기(OG) 이미지 — 카톡/트위터 등에서 링크 붙일 때 뜨는 카드
+  await copyFile(path.join(SRC_DIR, 'og-image.jpg'), path.join(DIST_DIR, 'og-image.jpg'));
 
   console.log(`완료 — dist/ 에 홈 1개 + 글 ${notes.length}개(각 /post + /claude|milo) + 게시판 2개 생성`);
 }

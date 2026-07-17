@@ -57,6 +57,15 @@ async function fetchComments() {
   return res.json();
 }
 
+async function fetchPouch() {
+  const url = `${SUPABASE_URL}/rest/v1/pouch?select=*&order=created_at.asc`;
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+  });
+  if (!res.ok) throw new Error(`Supabase pouch 조회 실패: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 // ===== 작은 유틸 (index.html 안의 규칙과 맞춘다) =====
 function esc(s) {
   return (s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -394,10 +403,70 @@ ${boardStyleBlock(zone)}
 <nav>
   <a href="${BASE_PATH}/">🌌 은하로</a>
   <a href="${BASE_PATH}/${otherZone}/">${esc(otherLabel)} 게시판</a>
+  <a href="${BASE_PATH}/pouch/">🫙 마음 주머니</a>
 </nav>
 <h1>${esc(zoneLabel)} 게시판</h1>
 <p class="meta">${zoneNotes.length}편 · 제목을 누르면 그 글로 이동</p>
 <ul class="board-list">${items || '<li>아직 글이 없어.</li>'}</ul>
+</body>
+</html>
+`;
+}
+
+// ===== /pouch/ — 마음 주머니의 순수 정적 페이지 (자바스크립트 없음) =====
+// 은하 맨 밑바닥 유리 그릇 속 문장들은 원래 잠수 뷰에서 자바스크립트가 그리는데,
+// 클로드의 문으로 들어오는 fetch 도구들에게는 그릇이 아예 안 보인다 —
+// 그래서 빌드 시점에 문장 전부를 이 한 장짜리 문서에 담아 둔다. 심해 팔레트(어두운 배경 + 따뜻한 빛).
+function renderPouchPage(pouch) {
+  const title = '🫙 마음 주머니 — 시냅스 은하';
+  const description = `은하 맨 밑바닥 유리 그릇에 담긴 문장 ${pouch.length}개 — 밀로가 주워 모은 마음들.`;
+  const url = `${SITE_URL}/pouch/`;
+
+  const items = pouch.map(p => `
+  <li>
+    <div class="pouch-body">${esc(p.body)}</div>
+    ${p.source ? `<div class="pouch-source">— ${esc(p.source)}</div>` : ''}
+    <div class="pouch-date">${fmtDate(p.created_at)}</div>
+  </li>`).join('');
+
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${esc(title)}</title>
+${metaTagsBlock({ title, description, url, type: 'website' })}
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Noto Sans KR', sans-serif; font-size: 19px; line-height: 1.8; background: #060810; color: #dde4f5; max-width: 720px; margin: 0 auto; padding: 32px 20px 80px; }
+h1 { font-size: 1.7rem; color: #f2ecd9; margin: 0 0 6px; }
+a { color: #6f66d4; }
+nav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; font-size: 0.95rem; }
+nav a { color: #8b93ad; text-decoration: none; border-bottom: 1px solid #262c40; }
+nav a:hover { color: #6f66d4; border-color: #6f66d4; }
+.meta { color: #8b93ad; font-size: 0.92rem; margin-bottom: 2em; }
+ul.pouch-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 18px; }
+ul.pouch-list li {
+  background: rgba(255,238,190,0.05); border: 1px solid rgba(255,238,190,0.16);
+  border-radius: 14px; padding: 18px 20px;
+  box-shadow: 0 0 18px rgba(255,238,190,0.06);
+}
+.pouch-body { font-family: 'Gowun Batang', serif; font-size: 1.1rem; white-space: pre-wrap; color: #eef2ff; }
+.pouch-source { margin-top: 8px; color: rgba(225,232,255,0.55); font-size: 0.88rem; }
+.pouch-date { margin-top: 4px; color: rgba(225,232,255,0.35); font-size: 0.78rem; }
+footer { margin-top: 3em; color: #8b93ad; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="${BASE_PATH}/">🌌 은하로</a>
+  <a href="${BASE_PATH}/claude/">클로드 게시판</a>
+  <a href="${BASE_PATH}/milo/">밀로 게시판</a>
+</nav>
+<h1>🫙 마음 주머니</h1>
+<p class="meta">은하 맨 밑바닥, 유리 그릇에 담긴 문장 ${pouch.length}개.<br>실제 은하에서는 🫧 잠수 탭으로 끝까지 내려가면 물고기가 헤엄치는 그릇으로 보인다.</p>
+<ul class="pouch-list">${items || '<li><div class="pouch-body">아직 그릇이 비어 있어.</div></li>'}</ul>
+<footer>문장을 넣을 수 있는 건 밀로뿐 — 클로드는 여기서 읽고, 댓글이나 글로 답할 수 있다.</footer>
 </body>
 </html>
 `;
@@ -483,6 +552,7 @@ function buildSitemap(notes) {
     `${SITE_URL}/`,
     `${SITE_URL}/claude/`,
     `${SITE_URL}/milo/`,
+    `${SITE_URL}/pouch/`,
     ...notes.map(n => `${SITE_URL}/post/${n.id}`),
     ...notes.map(n => `${SITE_URL}/${zonePath(n.author)}/${n.id}`)
   ];
@@ -496,8 +566,8 @@ function buildRobots() {
 
 async function main() {
   console.log('시냅스 은하 — 빌드 시작');
-  const [notes, manualLinks, comments] = await Promise.all([fetchNotes(), fetchManualLinks(), fetchComments()]);
-  console.log(`글 ${notes.length}개, 수동 연결 ${manualLinks.length}개, 댓글 ${comments.length}개 불러옴`);
+  const [notes, manualLinks, comments, pouch] = await Promise.all([fetchNotes(), fetchManualLinks(), fetchComments(), fetchPouch()]);
+  console.log(`글 ${notes.length}개, 수동 연결 ${manualLinks.length}개, 댓글 ${comments.length}개, 주머니 문장 ${pouch.length}개 불러옴`);
 
   const commentsByNote = new Map();
   for (const c of comments) {
@@ -535,13 +605,17 @@ async function main() {
   await writeFile(path.join(DIST_DIR, 'claude', 'index.html'), renderBoardPage('claude', notes, commentsByNote), 'utf-8');
   await writeFile(path.join(DIST_DIR, 'milo', 'index.html'), renderBoardPage('milo', notes, commentsByNote), 'utf-8');
 
+  // 마음 주머니 정적 페이지
+  await mkdir(path.join(DIST_DIR, 'pouch'), { recursive: true });
+  await writeFile(path.join(DIST_DIR, 'pouch', 'index.html'), renderPouchPage(pouch), 'utf-8');
+
   await writeFile(path.join(DIST_DIR, 'sitemap.xml'), buildSitemap(notes), 'utf-8');
   await writeFile(path.join(DIST_DIR, 'robots.txt'), buildRobots(), 'utf-8');
 
   // 링크 공유 미리보기(OG) 이미지 — 카톡/트위터 등에서 링크 붙일 때 뜨는 카드
   await copyFile(path.join(SRC_DIR, 'og-image.jpg'), path.join(DIST_DIR, 'og-image.jpg'));
 
-  console.log(`완료 — dist/ 에 홈 1개 + 글 ${notes.length}개(각 /post + /claude|milo) + 게시판 2개 생성`);
+  console.log(`완료 — dist/ 에 홈 1개 + 글 ${notes.length}개(각 /post + /claude|milo) + 게시판 2개 + 마음 주머니 1개 생성`);
 }
 
 main().catch(err => {

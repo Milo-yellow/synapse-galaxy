@@ -339,9 +339,32 @@
   .board-layer { flex: none; font-size: 0.88rem; }
   .board-cmt { flex: none; color: var(--text-faint); font-size: 0.82rem; }
   .board-date { flex: none; color: var(--text-faint); font-size: 0.82rem; }
+  /* 💬 댓글 달린 글만 보기 토글 */
+  .cmt-filter-btn {
+    display: block; margin: 10px auto 0; padding: 7px 18px;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text-dim); cursor: pointer;
+    font-family: inherit; font-size: 0.92rem; transition: all 0.15s;
+  }
+  .cmt-filter-btn:hover { border-color: var(--milo-soft); color: var(--text); }
+  .cmt-filter-btn.on {
+    border-color: var(--milo-soft); background: rgba(83,74,183,0.3);
+    color: #fff; font-weight: 700;
+  }
+  .cmt-filter-btn.on::before { content: '✓ '; font-weight: 800; }
+  /* 댓글 모아보기 줄 — 마지막 댓글 미리보기가 한 줄 더 붙는다 */
+  .board-row.cmt-mode { flex-wrap: wrap; }
+  .board-last-cmt {
+    flex-basis: 100%; margin-top: 6px; padding-left: 20px;
+    color: var(--text-faint); font-size: 0.9rem;
+    font-family: 'Gowun Batang', serif;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   @media (max-width: 640px) {
     .board-title { white-space: normal; word-break: keep-all; }   /* 폰에선 제목 줄바꿈 허용 (단어 단위로) */
     .board-cmt { display: none; }
+    .board-row.cmt-mode .board-cmt { display: block; }   /* 댓글 모아보기에선 폰에서도 개수 표시 */
+    .board-last-cmt { white-space: normal; padding-left: 0; }
   }
 
   /* 글 상세 창의 글 관리 버튼 줄 (수정/잇기/삭제 — 밀로 전용, 카드에서 이사옴) */
@@ -1028,6 +1051,7 @@
     <section id="view-list" class="view">
       <div class="search-wrap">
         <input type="search" id="searchBox" placeholder="🔍 제목·본문·태그로 찾기" aria-label="글 검색" />
+        <button id="cmtFilterBtn" class="cmt-filter-btn" aria-pressed="false">💬 댓글 달린 글만</button>
       </div>
       <div id="listMeta" class="list-meta"></div>
       <div id="listBody"></div>
@@ -1905,17 +1929,43 @@
       }, 150);
     });
 
+    // 💬 댓글 달린 글만 모아보기 토글
+    let commentFilterOn = false;
+    $('#cmtFilterBtn').addEventListener('click', () => {
+      commentFilterOn = !commentFilterOn;
+      $('#cmtFilterBtn').classList.toggle('on', commentFilterOn);
+      $('#cmtFilterBtn').setAttribute('aria-pressed', String(commentFilterOn));
+      renderList();
+    });
+
+    // 댓글 미리보기용 — 줄바꿈을 없애고 한 줄로
+    function oneLine(s) { return String(s ?? '').replace(/\s+/g, ' ').trim(); }
+
     // ===== 게시판 렌더 — 정적 게시판처럼 시간순 한 줄 목록 =====
     // (카드 방식은 글이 늘수록 한정없이 길어져 은퇴 — 수정/삭제/잇기/이어지는 글은 상세 창으로 이사)
     function renderList() {
       const meta = $('#listMeta');
       const box = $('#listBody');
 
-      const vis = visibleNotes().filter(matchesSearch);
+      let vis = visibleNotes().filter(matchesSearch);
+
+      // 💬 필터가 켜져 있으면 — 댓글 달린 글만, 최근 댓글이 위로
+      const lastCmt = new Map();   // note.id → 그 글의 마지막 댓글
+      if (commentFilterOn) {
+        vis = vis.filter(n => {
+          const cs = commentsFor(n.id);
+          if (!cs.length) return false;
+          lastCmt.set(n.id, cs[cs.length - 1]);   // commentsFor는 시간순이라 맨 끝이 최신
+          return true;
+        });
+        vis.sort((a, b) => new Date(lastCmt.get(b.id).created_at) - new Date(lastCmt.get(a.id).created_at));
+      }
 
       if (!vis.length) {
         meta.textContent = '';
-        const msg = searchQuery
+        const msg = commentFilterOn
+          ? (searchQuery ? `"${esc(searchQuery)}" 에 맞는, 댓글 달린 글이 없어.` : '아직 댓글이 달린 글이 없어.<br>첫 마디를 기다리는 중.')
+          : searchQuery
           ? `"${esc(searchQuery)}" 에 맞는 글이 없어.`
           : (zoneFilter === 'all' ? '아직 비어 있는 은하.<br>첫 점을 찍어보자.'
             : (zoneFilter === '클로드' ? '이 구역엔 아직 클로드 글이 없어.' : '이 구역엔 아직 내 글이 없어.'));
@@ -1924,18 +1974,30 @@
       }
 
       const zoneLabel = zoneFilter === 'all' ? '' : (zoneFilter === '클로드' ? '클로드 구역 · ' : '내 구역 · ');
-      meta.textContent = searchQuery
-        ? `${zoneLabel}"${searchQuery}" — ${vis.length}개 찾음`
-        : `${zoneLabel}${vis.length}개의 점이 떠 있다`;
+      if (commentFilterOn) {
+        const total = vis.reduce((s, n) => s + commentsFor(n.id).length, 0);
+        meta.textContent = `${zoneLabel}댓글 달린 글 ${vis.length}개 · 댓글 ${total}개`;
+      } else {
+        meta.textContent = searchQuery
+          ? `${zoneLabel}"${searchQuery}" — ${vis.length}개 찾음`
+          : `${zoneLabel}${vis.length}개의 점이 떠 있다`;
+      }
       box.innerHTML = '<div class="board-list">' + vis.map(n => {
         const cls = n.author === '클로드' ? 'claude' : 'milo';
         const cmt = commentsFor(n.id).length;
-        return `<button class="board-row" data-open="${n.id}">
+        const last = lastCmt.get(n.id);
+        // 댓글 모아보기에선 날짜도 글이 아니라 마지막 댓글 기준
+        const dateStr = commentFilterOn ? fmtDate(last.created_at) : fmtDate(n.created_at);
+        const preview = commentFilterOn
+          ? `<span class="board-last-cmt">└ ${esc(last.author)} — ${esc(oneLine(last.body))}</span>`
+          : '';
+        return `<button class="board-row${commentFilterOn ? ' cmt-mode' : ''}" data-open="${n.id}">
           <span class="board-dot ${cls}" title="${esc(n.author)}"></span>
           <span class="board-title">${esc(n.title)}</span>
           <span class="board-layer" title="${esc(layerOf(n))}">${layerEmoji(layerOf(n))}</span>
           ${cmt ? `<span class="board-cmt">💬 ${cmt}</span>` : ''}
-          <span class="board-date">${fmtDate(n.created_at)}</span>
+          <span class="board-date">${dateStr}</span>
+          ${preview}
         </button>`;
       }).join('') + '</div>';
 

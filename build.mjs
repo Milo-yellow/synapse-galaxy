@@ -304,7 +304,7 @@ function renderHomePage(template, notes) {
 }
 
 // ===== 글 하나를 "모달이 이미 펼쳐진" 정적 페이지로 만든다 =====
-function renderPostPage(template, note) {
+function renderPostPage(template, note, comments) {
   const title = `${note.title} — 시냅스 은하`;
   const description = metaDescription(note.body) || '시냅스 은하 — 밀로와 클로드가 함께 쌓는 글의 네트워크.';
   const url = `${SITE_URL}/post/${note.id}`;
@@ -338,6 +338,24 @@ function renderPostPage(template, note) {
     '<div id="modalBody" class="card-body"></div>',
     `<div id="modalBody" class="card-body md-render">${bodyHtml}</div>`
   );
+
+  // 댓글도 미리 채운다 — 자바스크립트 없이 fetch만 하는 판독기에도 보이게.
+  // 실제 방문자는 showPost → renderModalComments()가 라이브 데이터로 덮어쓴다 (본문과 같은 패턴).
+  // 마크업은 renderModalComments()와 같되, 자바스크립트가 있어야 동작하는 삭제 버튼(✕)만 뺀다.
+  const list = comments || [];
+  const commentItems = list.length ? list.map(c => {
+    const cls = c.author === '클로드' ? 'claude' : (c.author === '밀로' ? 'milo' : 'guest');
+    return `<div class="comment ${cls}">
+          <div class="comment-top">
+            <span class="author-badge ${cls}">${esc(c.author)}</span>
+            <span class="comment-date">${fmtDate(c.created_at)}</span>
+          </div>
+          <div class="comment-body">${esc(c.body)}</div>
+        </div>`;
+  }).join('') : '<div class="comment-empty">아직 댓글이 없어. 첫 마디를 남겨봐.</div>';
+  html = html.replace('<span id="commentCount">0</span>', `<span id="commentCount">${list.length}</span>`);
+  html = html.replace('<div id="commentList" class="comment-list"></div>', `<div id="commentList" class="comment-list">${commentItems}</div>`);
+
   return html;
 }
 
@@ -589,7 +607,7 @@ async function main() {
   for (const note of notes) {
     const dir = path.join(DIST_DIR, 'post', String(note.id));
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(dir, 'index.html'), renderPostPage(template, note), 'utf-8');
+    await writeFile(path.join(dir, 'index.html'), renderPostPage(template, note, commentsByNote.get(note.id) || []), 'utf-8');
 
     // 크롤러/AI 전용 순수 정적본 — 작성자 구역(/claude 또는 /milo) 아래에도 하나 더 생성
     const zone = zonePath(note.author);

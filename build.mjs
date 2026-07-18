@@ -633,6 +633,10 @@ async function main() {
   // 링크 공유 미리보기(OG) 이미지 — 카톡/트위터 등에서 링크 붙일 때 뜨는 카드
   await copyFile(path.join(SRC_DIR, 'og-image.jpg'), path.join(DIST_DIR, 'og-image.jpg'));
 
+  // "속삭이는 서랍" 개인 대시보드 — 별개의 정적 페이지(이 사이트 나머지와 무관, 링크 안 걸림).
+  // 열쇠는 URL 해시(#k=)로만 받아서 데이터는 그걸 아는 사람만 본다.
+  await copyFile(path.join(SRC_DIR, 'seorap.html'), path.join(DIST_DIR, 'seorap.html'));
+
   console.log(`완료 — dist/ 에 홈 1개 + 글 ${notes.length}개(각 /post + /claude|milo) + 게시판 2개 + 마음 주머니 1개 생성`);
 }
 

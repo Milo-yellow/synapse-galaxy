@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>속삭이는 서랍</title>
+<style>
+:root{--bg:#f4f1fb;--card:#fff;--ink:#2b2440;--sub:#7c7597;--accent:#8b6fd6;--chip:#ece6fb;--shadow:0 2px 10px rgba(90,70,150,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#17141f;--card:#221d2e;--ink:#ece8f5;--sub:#9a92b3;--accent:#b7a0f0;--chip:#2e2740;--shadow:0 2px 12px rgba(0,0,0,.3)}}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,'Malgun Gothic','Noto Sans KR',sans-serif;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;background:var(--bg);padding:16px 18px 10px;z-index:5;border-bottom:1px solid rgba(140,120,180,.12)}
+.htop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-size:19px;display:flex;align-items:center;gap:8px}
+.count{color:var(--sub);font-size:13px;font-weight:400;margin-left:6px}
+.refresh{border:none;background:var(--chip);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
+.refresh:active{transform:scale(.96)}
+.search{margin-top:12px;width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(140,120,180,.2);background:var(--card);color:var(--ink);font-size:16px;outline:none}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chip{padding:6px 12px;border-radius:999px;background:var(--chip);color:var(--ink);font-size:13px;cursor:pointer;border:1px solid transparent;white-space:nowrap;user-select:none}
+.chip.on{background:var(--accent);color:#fff}
+main{padding:14px 12px 40px}
+.grid{columns:260px;column-gap:12px}
+.card{break-inside:avoid;background:var(--card);border-radius:16px;padding:14px 15px;margin:0 0 12px;box-shadow:var(--shadow)}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.topic{font-size:12px;font-weight:600;color:var(--accent);background:var(--chip);padding:3px 9px;border-radius:999px}
+.date{font-size:12px;color:var(--sub)}
+.summary{font-size:15.5px;font-weight:600;line-height:1.45;margin-bottom:6px;word-break:break-word}
+.body{font-size:13.5px;color:var(--sub);line-height:1.5;white-space:pre-wrap;max-height:170px;overflow:hidden;word-break:break-word}
+.thumb{width:100%;border-radius:10px;margin:6px 0;display:block}
+.link{display:inline-block;font-size:13px;color:var(--accent);word-break:break-all;margin:4px 0;text-decoration:none}
+.tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:11.5px;color:var(--sub)}
+.cfoot{margin-top:8px;font-size:11px;color:var(--sub);opacity:.55}
+.msg{text-align:center;color:var(--sub);padding:60px 20px;font-size:15px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <div class="htop">
+    <h1>🗄️ 속삭이는 서랍<span class="count" id="count"></span></h1>
+    <button class="refresh" id="refresh">🔄</button>
+  </div>
+  <input class="search" id="search" placeholder="🔎 검색... (내용·주제·태그)">
+  <div class="chips" id="chips"></div>
+</header>
+<main><div class="grid" id="grid"><div class="msg">불러오는 중...</div></div></main>
+<script>
+var API_BASE = "https://ocrmqnklircmqdxzvdbc.supabase.co/functions/v1/drawer-data";
+var KEY = new URLSearchParams(location.hash.replace(/^#/, "")).get("k") || "";
+var DATA = [];
+var activeTopic = "__all__";
+var grid = document.getElementById("grid");
+var chipsEl = document.getElementById("chips");
+var countEl = document.getElementById("count");
+var searchEl = document.getElementById("search");
+
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+
+function counts(){var c={};DATA.forEach(function(it){var k=it.topic||"기타";c[k]=(c[k]||0)+1;});return c;}
+
+function buildChips(){
+  var c = counts();
+  var arr = Object.keys(c).sort(function(a,b){return c[b]-c[a];});
+  var h = '<span class="chip on" data-t="__all__">전체 '+DATA.length+'</span>';
+  arr.forEach(function(t){h += '<span class="chip" data-t="'+esc(t)+'">'+esc(t)+' '+c[t]+'</span>';});
+  chipsEl.innerHTML = h;
+  Array.prototype.forEach.call(chipsEl.children, function(el){
+    el.onclick = function(){
+      activeTopic = el.getAttribute("data-t");
+      Array.prototype.forEach.call(chipsEl.children, function(x){x.className="chip";});
+      el.className = "chip on";
+      render();
+    };
+  });
+}
+
+function card(it){
+  var icon = it.item_type=="photo"?"🖼":it.item_type=="file"?"📎":it.item_type=="link"?"🔗":"📝";
+  var m = "";
+  if(it.item_type=="photo" && it.media){m = '<img class="thumb" loading="lazy" src="'+esc(it.media)+'">';}
+  var lk = "";
+  if(it.item_type=="link" && it.content){var u=(it.content||"").trim();lk = '<a class="link" target="_blank" rel="noopener" href="'+esc(u)+'">'+esc(u)+'</a>';}
+  if(it.item_type=="file" && it.media){lk = '<a class="link" target="_blank" rel="noopener" href="'+esc(it.media)+'">📎 파일 열기</a>';}
+  var bd = "";
+  if(it.item_type=="text" && it.content){bd = '<div class="body">'+esc(it.content)+'</div>';}
+  var tg = (it.tags||[]).map(function(x){return '<span class="tag">#'+esc(x)+'</span>';}).join("");
+  return '<div class="card"><div class="chead"><span class="topic">'+icon+' '+esc(it.topic||"기타")+'</span><span class="date">'+esc(it.date)+'</span></div>'
+    + '<div class="summary">'+esc(it.summary)+'</div>'+m+lk+bd
+    + '<div class="tags">'+tg+'</div><div class="cfoot">#'+it.seq+'</div></div>';
+}
+
+function render(){
+  var q = (searchEl.value||"").toLowerCase();
+  var shown = DATA.filter(function(it){
+    if(activeTopic!="__all__" && (it.topic||"기타")!=activeTopic) return false;
+    if(q){
+      var hay = ((it.summary||"")+" "+(it.content||"")+" "+(it.topic||"")+" "+((it.tags||[]).join(" "))).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+  countEl.textContent = shown.length+"개";
+  grid.innerHTML = shown.length ? shown.map(card).join("") : '<div class="msg">🫙 여기엔 아무것도 없네</div>';
+}
+
+function load(){
+  if(!KEY){
+    grid.innerHTML = '<div class="msg">🔒 이 링크엔 열쇠가 없어.<br>주소 끝에 <b>#k=...</b> 가 붙은 정확한 북마크로 들어와줘.</div>';
+    return;
+  }
+  grid.innerHTML = '<div class="msg">불러오는 중...</div>';
+  fetch(API_BASE + "?k=" + encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
+    if(d.error){ grid.innerHTML = '<div class="msg">🔒 열쇠가 안 맞아. 링크를 다시 확인해줘.</div>'; return; }
+    DATA = d.items || [];
+    buildChips();
+    render();
+  }).catch(function(e){
+    grid.innerHTML = '<div class="msg">⚠️ 못 불러왔어. 인터넷 확인하고 🔄 눌러줘.<br><small>'+esc(e.message)+'</small></div>';
+  });
+}
+
+searchEl.oninput = render;
+document.getElementById("refresh").onclick = load;
+load();
+</script>
+</body>
+</html>

@@ -281,7 +281,11 @@
   /* 긴 문장은 말풍선 안에서 스크롤 — 말풍선이 화면을 다 덮지 않게 */
   .pouch-bubble .pouch-body { font-family: 'Gowun Batang', serif; font-size: 1.1rem; line-height: 1.85; color: #eef2ff; white-space: pre-wrap; max-height: 44vh; overflow-y: auto; }
   .pouch-bubble .pouch-source { margin-top: 10px; color: rgba(225,232,255,0.5); font-size: 0.85rem; }
-  .pouch-nav { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; align-items: center; }
+  /* 버튼 줄은 본문 위 — 문장이 길어져도 자리가 안 밀려서 연속으로 넘길 수 있다 */
+  .pouch-nav {
+    display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; align-items: center;
+    padding-bottom: 12px; border-bottom: 1px solid rgba(170,195,255,0.18);
+  }
   .pouch-nav .pouch-count-label { margin-right: auto; color: rgba(225,232,255,0.4); font-size: 0.8rem; }
   .pouch-nav button {
     background: rgba(255,255,255,0.07); border: 1px solid rgba(170,195,255,0.3);
@@ -3017,18 +3021,23 @@
     function showPouchBubble(p) {
       const b = $('#pouchBubble');
       const idx = pouch.findIndex(x => x.id === p.id);
-      b.innerHTML = `<div class="pouch-body">${esc(p.body)}</div>`
-        + (p.source ? `<div class="pouch-source">— ${esc(p.source)}</div>` : '')
-        + `<div class="pouch-nav">
+      b.innerHTML = `<div class="pouch-nav">
+            ${pouch.length > 1 ? `<button id="pouchPrev" aria-label="이전 문장">← 이전</button>` : ''}
+            ${pouch.length > 1 ? `<button id="pouchNext" aria-label="다음 문장">다음 →</button>` : ''}
             <span class="pouch-count-label">${idx + 1} / ${pouch.length}</span>
             ${session ? `<button class="pouch-del" data-pdel="${p.id}">빼기</button>` : ''}
-            ${pouch.length > 1 ? `<button id="pouchNext">다음 문장 →</button>` : ''}
             <button id="pouchCloseBtn">✕ 닫기</button>
-          </div>`;
-      // 다음 문장 — 말풍선이 그릇을 덮어도 여기서 바로 넘어간다 (한 바퀴 돌면 처음으로)
+          </div>`
+        + `<div class="pouch-body">${esc(p.body)}</div>`
+        + (p.source ? `<div class="pouch-source">— ${esc(p.source)}</div>` : '');
+      // 앞뒤로 넘기기 — 버튼이 본문 위에 붙어 있어 긴 글에서도 자리가 안 밀린다 (양쪽 끝은 서로 이어짐)
       b.querySelector('#pouchNext')?.addEventListener('click', ev => {
         ev.stopPropagation();
         showPouchBubble(pouch[(idx + 1) % pouch.length]);
+      });
+      b.querySelector('#pouchPrev')?.addEventListener('click', ev => {
+        ev.stopPropagation();
+        showPouchBubble(pouch[(idx - 1 + pouch.length) % pouch.length]);
       });
       b.querySelector('#pouchCloseBtn').addEventListener('click', ev => {
         ev.stopPropagation();

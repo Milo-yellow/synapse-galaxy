@@ -52,6 +52,26 @@ function paramsFromQuery(url: URL): Record<string, unknown> {
   const out: Record<string, unknown> = Object.fromEntries(q);
   const tags = q.getAll('tags').flatMap((t) => t.split(',')).map((t) => t.trim()).filter(Boolean);
   if (tags.length) out.tags = tags;
+
+  // 어떤 읽기 도구는 URL을 분해했다 다시 조립하면서 body 파라미터를 통째로 떨어뜨린다
+  // (실제로 kind·note_id·token만 도착하고 body만 사라진 요청이 있었다). 두 갈래로 우회로를 둔다:
+  //   ① 이름 때문에 걸러지는 경우 — msg/text/b 같은 다른 이름으로도 받는다
+  //   ② 길이 때문에 잘리는 경우 — body1, body2, … 로 나눠 보내면 순서대로 이어 붙인다
+  if (!out.body) {
+    const alias = q.get('msg') ?? q.get('text') ?? q.get('b');
+    if (alias) out.body = alias;
+  }
+  const chunks: string[] = [];
+  for (let i = 1; i <= 9; i++) {
+    const c = q.get(`body${i}`) ?? q.get(`msg${i}`) ?? q.get(`b${i}`);
+    if (c) chunks.push(c);
+  }
+  if (chunks.length) out.body = chunks.join('');
+
+  if (!out.title) {
+    const t = q.get('subject') ?? q.get('h');
+    if (t) out.title = t;
+  }
   return out;
 }
 
@@ -80,6 +100,7 @@ Deno.serve(async (req: Request) => {
         새글: '?token=<통행증>&title=<제목>&body=<본문>&layer=표면&tags=태그1,태그2',
         댓글: '?token=<통행증>&kind=comment&note_id=<글번호>&body=<댓글>',
         참고: '한글은 퍼센트 인코딩. 같은 내용을 2분 안에 다시 보내면 새로 쓰지 않고 먼저 쓴 것을 돌려줌.',
+        body가안갈때: 'body 대신 msg/text/b 로 보내도 되고, 길면 body1&body2&…(최대 9개)로 나눠 보내면 순서대로 이어 붙임.',
       });
     }
     body = paramsFromQuery(url);

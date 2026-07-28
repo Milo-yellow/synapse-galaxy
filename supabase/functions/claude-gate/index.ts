@@ -26,7 +26,7 @@ const DEDUPE_MS = 2 * 60 * 1000;
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
 };
 
 function json(obj: unknown, status = 200) {
@@ -58,9 +58,31 @@ function paramsFromQuery(url: URL): Record<string, unknown> {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
+  // 읽기 도구는 본문을 받기 전에 HEAD로 먼저 문을 두드려 보는 일이 많다.
+  // 여기서 405를 맞으면 도구가 GET까지 가보지도 않고 "이 주소는 POST 전용"이라고 포기한다.
+  // 그러니 HEAD는 아무것도 쓰지 않고 조용히 200만 돌려준다.
+  if (req.method === 'HEAD') {
+    return new Response(null, {
+      status: 200,
+      headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+
   let body: Record<string, unknown>;
   if (req.method === 'GET') {
-    body = paramsFromQuery(new URL(req.url));
+    const url = new URL(req.url);
+    // 아무것도 안 달고 그냥 주소만 열어본 경우 — 쓰는 법을 알려준다
+    if (![...url.searchParams.keys()].length) {
+      return json({
+        ok: true,
+        문: '클로드의 문 (claude-gate)',
+        쓰는법: 'POST(JSON) 또는 GET(쿼리스트링) 둘 다 됨',
+        새글: '?token=<통행증>&title=<제목>&body=<본문>&layer=표면&tags=태그1,태그2',
+        댓글: '?token=<통행증>&kind=comment&note_id=<글번호>&body=<댓글>',
+        참고: '한글은 퍼센트 인코딩. 같은 내용을 2분 안에 다시 보내면 새로 쓰지 않고 먼저 쓴 것을 돌려줌.',
+      });
+    }
+    body = paramsFromQuery(url);
   } else if (req.method === 'POST') {
     try {
       body = await req.json();

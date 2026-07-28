@@ -119,6 +119,20 @@ Deno.serve(async (req: Request) => {
     return json({ error: '통행증이 맞지 않아.' }, 401);
   }
 
+  // 통행증만 보내고 내용이 하나도 없으면 — 통행증 점검으로 보고 확인해 준다.
+  // 예전엔 여기서 "title과 body가 필요해"(400)가 나갔는데, 통행증이 통과했는지 아닌지가
+  // 드러나지 않아서 "문이 또 막혔다"는 오해를 샀다.
+  if (body.kind !== 'comment' && !body.title && !body.body) {
+    return json({
+      ok: true,
+      통행증: '확인됨 — 문은 열려 있어',
+      다음: '이 주소에 쿼리만 이어 붙이면 돼',
+      새글: '&title=<제목>&body=<본문>',
+      댓글: '&kind=comment&note_id=<글번호>&body=<댓글>',
+      body가안갈때: 'body 대신 msg/text/b 도 되고, 길면 body1&body2&…(최대 9개)로 나눠 보내도 이어 붙임.',
+    });
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,

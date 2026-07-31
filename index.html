@@ -888,7 +888,7 @@
   .modal .card-body { margin-bottom: 0; }
 
   /* ===== 마크다운 글쓰기 (툴바 + 눌러서 보는 미리보기) ===== */
-  #writeModal .modal { max-width: min(980px, 92vw); }
+  #writeModal .modal { max-width: min(1180px, 94vw); max-height: 92vh; }
 
   /* ----- 글쓰기 창만 밝은 옷 — 바탕은 아이보리, 쓰는 칸은 옅은 보랏빛 -----
      안쪽 부품들이 모두 이 변수들을 보고 색을 정하니, 창 하나에만 변수를 다시 심으면
@@ -940,7 +940,7 @@
 
   /* 쓰는 칸이 창을 통째로 쓴다. 미리보기는 👁 버튼을 눌렀을 때 그 자리에 대신 나온다. */
   .md-editor { display: block; }
-  .md-editor textarea { width: 100%; min-height: clamp(280px, 46vh, 520px); margin: 0; }
+  .md-editor textarea { width: 100%; min-height: clamp(320px, 56vh, 680px); margin: 0; }
   .md-editor .md-preview { display: none; }
   .md-editor.show-preview textarea { display: none; }
   .md-editor.show-preview .md-preview { display: block; }
@@ -950,8 +950,8 @@
     border-radius: 10px;
     padding: 13px 16px;
     overflow-y: auto;
-    min-height: clamp(280px, 46vh, 520px);
-    max-height: 62vh;
+    min-height: clamp(320px, 56vh, 680px);
+    max-height: 72vh;
   }
   .md-preview:empty::before { content: '여기에 꾸며진 모습이 보여…'; color: var(--text-faint); font-family: 'Gowun Batang', serif; }
 

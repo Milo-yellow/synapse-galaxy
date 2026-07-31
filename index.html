@@ -887,8 +887,33 @@
   .modal-close:hover { color: var(--text); border-color: var(--milo); }
   .modal .card-body { margin-bottom: 0; }
 
-  /* ===== 마크다운 글쓰기 (툴바 + 좌우 미리보기) ===== */
-  #writeModal .modal { max-width: min(1240px, 92vw); }
+  /* ===== 마크다운 글쓰기 (툴바 + 눌러서 보는 미리보기) ===== */
+  #writeModal .modal { max-width: min(980px, 92vw); }
+
+  /* ----- 글쓰기 창만 밝은 옷 — 바탕은 아이보리, 쓰는 칸은 옅은 보랏빛 -----
+     안쪽 부품들이 모두 이 변수들을 보고 색을 정하니, 창 하나에만 변수를 다시 심으면
+     제목칸·본문칸·툴바·닫기버튼까지 통째로 밝은 색으로 따라온다. (사이트 나머지는 그대로 밤하늘) */
+  #writeModal .modal {
+    --card: #FFFFFB;        /* 창 바탕 — 아이보리 */
+    --bg-soft: #F3F2FF;     /* 글 쓰는 칸·버튼 바탕 — 옅은 보랏빛 */
+    --line: #ddd9f0;        /* 연한 보라 구분선 */
+    --text: #241f33;        /* 짙은 먹보라 — 쓰는 글씨 */
+    --text-dim: #403a57;    /* 이름표·본문 */
+    --text-faint: #6f6a88;  /* 보조 안내 — 밝은 바탕에선 흐리면 안 보여서 조금 짙게 */
+    --milo-soft: #4f46b0;   /* 밝은 바탕에서도 또렷하게 */
+    --claude-soft: #178f68;
+    /* 창 안에서 색을 따로 안 정한 글씨(창 제목 같은 것)는 밖에서 아이보리를 물려받아
+       아이보리 바탕에 묻히니, 여기서 한 번 짙은 색으로 끊어준다 */
+    color: var(--text);
+  }
+  /* 밝은 바탕에서 흰 글씨가 되는 자리들만 짙게 보정 */
+  #writeModal .author-opt[data-on="milo"].sel { background: rgba(83,74,183,0.16); color: #3f3690; }
+  #writeModal .author-opt[data-on="claude"].sel { background: rgba(29,158,117,0.16); color: #146b4f; }
+  #writeModal .layer-opt.sel { background: rgba(83,74,183,0.14); color: #3f3690; }
+  #writeModal .post-url-copy:hover { background: var(--milo); color: #fff; }
+  /* 미리보기 속 코드칸도 검정 대신 옅은 보라로 */
+  #writeModal .md-render code,
+  #writeModal .md-render pre { background: rgba(83,74,183,0.08); }
   /* 글 보는 창도 글 쓰는 창처럼 크고 넓게 */
   #modal .modal { max-width: min(1040px, 92vw); max-height: 88vh; padding: 34px 40px; }
   /* 넓어진 만큼 글씨도 조금 더 큼직하게 — 읽기 편하게 */
@@ -911,19 +936,22 @@
   .md-toolbar .md-b { font-weight: 800; }
   .md-toolbar .md-i { font-style: italic; }
   .md-toolbar .md-spacer { flex: 1; }
-  .md-toolbar .md-preview-toggle { display: none; border-color: var(--milo); color: var(--milo-soft); }
+  .md-toolbar .md-preview-toggle { margin-left: auto; border-color: var(--milo); color: var(--milo-soft); }
 
-  .md-editor { display: flex; gap: 12px; align-items: stretch; }
-  .md-editor textarea { flex: 1; min-height: 240px; margin: 0; }
+  /* 쓰는 칸이 창을 통째로 쓴다. 미리보기는 👁 버튼을 눌렀을 때 그 자리에 대신 나온다. */
+  .md-editor { display: block; }
+  .md-editor textarea { width: 100%; min-height: clamp(280px, 46vh, 520px); margin: 0; }
+  .md-editor .md-preview { display: none; }
+  .md-editor.show-preview textarea { display: none; }
+  .md-editor.show-preview .md-preview { display: block; }
   .md-preview {
-    flex: 1;
     background: var(--bg-soft);
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 13px 16px;
     overflow-y: auto;
-    min-height: 240px;
-    max-height: 420px;
+    min-height: clamp(280px, 46vh, 520px);
+    max-height: 62vh;
   }
   .md-preview:empty::before { content: '여기에 꾸며진 모습이 보여…'; color: var(--text-faint); font-family: 'Gowun Batang', serif; }
 
@@ -1022,11 +1050,8 @@
     #modal .card-head h3 { font-size: 1.4rem; }
     #modal .card-body.md-render { font-size: 1.1rem; }
 
-    /* 마크다운: 좁은 화면에선 좌우 대신 토글 */
-    .md-toolbar .md-preview-toggle { display: inline-block; margin-left: auto; }
-    .md-editor .md-preview { display: none; }
-    .md-editor.show-preview textarea { display: none; }
-    .md-editor.show-preview .md-preview { display: block; }
+    /* 마크다운: 폰에선 쓰는 칸 높이만 조금 낮춘다 (토글 방식은 큰 화면과 같음) */
+    .md-editor textarea, .md-preview { min-height: 300px; }
   }
 </style>
 </head>
@@ -1630,16 +1655,23 @@
       }
     }
 
-    // ===== 좌우 실시간 미리보기 =====
+    // ===== 미리보기 (👁 버튼을 눌렀을 때만 쓰는 칸 자리에 나온다) =====
     function renderPreview() {
       $('#mdPreview').innerHTML = renderMarkdown($('#body').value);
+    }
+    // 미리보기를 보는 중에 꾸미기·사진 버튼을 누르면 다시 쓰는 칸으로 돌아온다
+    function backToWriting() {
+      const ed = $('#mdEditor');
+      if (!ed.classList.contains('show-preview')) return;
+      ed.classList.remove('show-preview');
+      $('#mdPreviewToggle').textContent = '👁 미리보기';
     }
     // 본문 입력 → 미리보기 갱신 + 임시저장
     $('#body').addEventListener('input', () => { renderPreview(); scheduleDraftSave(); });
     // 제목·태그도 임시저장 대상
     $('#title').addEventListener('input', scheduleDraftSave);
     $('#tags').addEventListener('input', scheduleDraftSave);
-    // 폰: 쓰기 ↔ 미리보기 토글
+    // 쓰기 ↔ 미리보기 토글
     $('#mdPreviewToggle').addEventListener('click', () => {
       const ed = $('#mdEditor');
       const on = ed.classList.toggle('show-preview');
@@ -1649,6 +1681,7 @@
 
     // ===== 꾸미기 툴바 =====
     function applyMd(kind) {
+      backToWriting();
       const ta = $('#body');
       const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
       const wrap = (before, after, ph) => {
@@ -1687,6 +1720,7 @@
     const IMG_MAX_BYTES = 8 * 1024 * 1024;   // 버킷 쪽 제한(8MB)과 같은 값
 
     function insertAtCursor(text) {
+      backToWriting();
       const ta = $('#body');
       const s = ta.selectionStart, e = ta.selectionEnd;
       ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);

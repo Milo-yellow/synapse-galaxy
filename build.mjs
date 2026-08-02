@@ -87,7 +87,10 @@ function mdToPlain(src) {
     .replace(/`(.+?)`/g, '$1')
     .replace(/!\[.*?\]\(.+?\)/g, '')
     .replace(/\[(.+?)\]\(.+?\)/g, '$1')
-    .replace(/^\s*[-*_]{3,}\s*$/gm, '');
+    .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+    // 표: 구분줄은 지우고 한 줄은 칸을 가운뎃점으로 잇는다 ([ \t]만 — \s를 쓰면 줄바꿈까지 먹어 줄이 붙는다)
+    .replace(/^[ \t]*\|?[ \t:|-]*-{2,}[ \t:|-]*\|?[ \t]*$/gm, '')
+    .replace(/^[ \t]*\|(.*)\|[ \t]*$/gm, (_m, row) => row.split('|').map(c => c.trim()).filter(Boolean).join(' · '));
 }
 function metaDescription(body) {
   const plain = mdToPlain(body).replace(/\s+/g, ' ').trim();
@@ -126,6 +129,34 @@ function renderInline(text) {
   return out;
 }
 
+// ----- 표(GFM 파이프 표) -----
+// 헤더 줄 바로 다음에 |---|:---:| 같은 구분줄이 올 때만 표로 본다 (그냥 --- 는 <hr>).
+function isTableSeparator(line) {
+  return line.includes('|') && /^\s*\|?(\s*:?-{2,}:?\s*\|)+\s*:?-{2,}:?\s*\|?\s*$/.test('|' + line.trim().replace(/^\||\|$/g, '') + '|');
+}
+function splitTableRow(line) {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+}
+function tableAligns(sepLine) {
+  return splitTableRow(sepLine).map(c => {
+    const left = c.startsWith(':'), right = c.endsWith(':');
+    if (left && right) return ' style="text-align:center"';
+    if (right) return ' style="text-align:right"';
+    return '';
+  });
+}
+function renderTableBlock(headLine, sepLine, bodyLines) {
+  const aligns = tableAligns(sepLine);
+  const cell = (tag, text, i) => `<${tag}${aligns[i] || ''}>${renderInline(text)}</${tag}>`;
+  const head = '<tr>' + splitTableRow(headLine).map((c, i) => cell('th', c, i)).join('') + '</tr>';
+  const body = bodyLines.map(l => {
+    const cells = splitTableRow(l);
+    return '<tr>' + cells.map((c, i) => cell('td', c, i)).join('') + '</tr>';
+  }).join('');
+  // index.html의 .md-table-wrap과 같은 껍데기 — /post/<id> 스냅샷은 index.html 스타일을 그대로 쓴다.
+  return `<div class="md-table-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
 function renderMarkdownLite(src) {
   const lines = (src || '').replace(/\r\n/g, '\n').split('\n');
   const blocks = [];
@@ -140,6 +171,15 @@ function renderMarkdownLite(src) {
     if (/^\s*([-*_])\1{2,}\s*$/.test(line)) { flushPara(); blocks.push('<hr>'); i++; continue; }
     const h = line.match(/^(#{1,3})\s+(.*)$/);
     if (h) { flushPara(); const lvl = h[1].length; blocks.push(`<h${lvl}>${renderInline(h[2])}</h${lvl}>`); i++; continue; }
+    if (line.includes('|') && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      flushPara();
+      const headLine = line, sepLine = lines[i + 1];
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim()) { rows.push(lines[i]); i++; }
+      blocks.push(renderTableBlock(headLine, sepLine, rows));
+      continue;
+    }
     if (/^>\s?/.test(line)) {
       flushPara();
       const items = [];
@@ -237,6 +277,11 @@ ul.board-list li a:hover { text-decoration: underline; }
 .post-body h1, .post-body h2, .post-body h3 { color: ${text}; }
 .post-body blockquote { border-left: 3px solid ${accent}; margin: 1em 0; padding-left: 14px; color: ${textFaint}; }
 .post-body code { background: rgba(128,128,128,0.18); padding: 1px 5px; border-radius: 4px; }
+.md-table-wrap { overflow-x: auto; margin: 1.1em 0; }
+.post-body table { border-collapse: collapse; width: 100%; min-width: 340px; font-size: 0.94em; line-height: 1.6; border: 1px solid rgba(140,140,150,0.5); }
+.post-body th, .post-body td { border: 1px solid rgba(140,140,150,0.5); padding: 9px 13px; text-align: left; vertical-align: top; }
+.post-body thead th { background: rgba(128,128,128,0.16); color: ${text}; font-weight: 700; }
+.post-body tbody tr:nth-child(even) td { background: rgba(128,128,128,0.07); }
 .related-list { list-style: none; padding: 0; }
 .related-list li { padding: 8px 0; border-bottom: 1px solid ${line}; }
 .related-list .reason { color: ${textFaint}; font-size: 0.85rem; }

@@ -22,6 +22,16 @@ h1{margin:0;font-size:19px;display:flex;align-items:center;gap:8px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
 .chip{padding:6px 12px;border-radius:999px;background:var(--chip);color:var(--ink);font-size:13px;cursor:pointer;border:1px solid transparent;white-space:nowrap;user-select:none}
 .chip.on{background:var(--accent);color:#fff}
+.dchips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;align-items:center}
+.dchips .chip b{font-weight:600;opacity:.6;font-size:11.5px}
+.mrow{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:3px;padding-left:2px}
+.mrow .chip{font-size:12px;padding:5px 10px;background:transparent;border:1px solid rgba(140,120,180,.28)}
+.mrow .chip.on{background:var(--accent);color:#fff;border-color:transparent}
+.dsec{margin-bottom:4px}
+.dhead{display:flex;align-items:center;gap:9px;margin:18px 2px 9px;font-size:13px;font-weight:700;color:var(--sub);letter-spacing:.02em}
+.dhead .ln{flex:1;height:1px;background:rgba(140,120,180,.2)}
+.dcnt{font-size:11.5px;font-weight:600;color:var(--accent);background:var(--chip);border-radius:999px;padding:2px 8px}
+.dlist .card .date{display:none}
 main{padding:14px 12px 40px}
 .grid{columns:260px;column-gap:12px}
 .card{break-inside:avoid;background:var(--card);border-radius:16px;padding:14px 15px;margin:0 0 12px;box-shadow:var(--shadow)}
@@ -70,12 +80,14 @@ main{padding:14px 12px 40px}
   <div class="htop">
     <h1>🗄️ 속삭이는 서랍<span class="count" id="count"></span></h1>
     <div class="hbtns">
+      <button class="hbtn" id="dateBtn">📅 날짜별</button>
       <button class="hbtn" id="trashBtn" style="display:none">🗑 휴지통</button>
       <button class="hbtn" id="refresh">🔄</button>
     </div>
   </div>
   <input class="search" id="search" placeholder="🔎 검색... (내용·주제·태그)">
   <div class="chips" id="chips"></div>
+  <div class="dchips" id="dchips"></div>
 </header>
 <main><div class="grid" id="grid"><div class="msg">불러오는 중...</div></div><div id="more"></div></main>
 <button class="fab" id="fab" title="새 글">＋</button>
@@ -106,6 +118,9 @@ var WRITE_API = "https://ocrmqnklircmqdxzvdbc.supabase.co/functions/v1/drawer-wr
 
 var DATA = [];
 var activeTopic = "__all__";
+var activeYear = "__all__";
+var activeMonth = "__all__";
+var dateMode = localStorage.getItem("seorap_dateMode") !== "0";
 var trashMode = false;
 var renderLimit = 150;
 var lastShown = [];
@@ -113,6 +128,7 @@ var editingSeq = null;
 
 var grid = document.getElementById("grid");
 var chipsEl = document.getElementById("chips");
+var dchipsEl = document.getElementById("dchips");
 var countEl = document.getElementById("count");
 var searchEl = document.getElementById("search");
 var moreEl = document.getElementById("more");
@@ -144,10 +160,45 @@ function buildChips(){
       activeTopic = el.getAttribute("data-t");
       Array.prototype.forEach.call(chipsEl.children, function(x){x.className="chip";});
       el.className = "chip on";
-      renderLimit = 150; render();
+      activeMonth = "__all__";
+      renderLimit = 150; buildDateChips(); render();
     };
   });
+  buildDateChips();
 }
+
+// ===== 날짜(연·월) 칩 =====
+function topicPool(){
+  return DATA.filter(function(it){ return trashMode || activeTopic=="__all__" || (it.topic||"기타")==activeTopic; });
+}
+function buildDateChips(){
+  if(trashMode){ dchipsEl.innerHTML=""; return; }
+  var base = topicPool();
+  var ys = {};
+  base.forEach(function(it){ var y=(it.date||"").slice(0,4); if(y) ys[y]=(ys[y]||0)+1; });
+  var yl = Object.keys(ys).sort().reverse();
+  if(activeYear!="__all__" && !ys[activeYear]){ activeYear="__all__"; activeMonth="__all__"; }
+  var h = '<span class="chip'+(activeYear=="__all__"?" on":"")+'" data-y="__all__">📅 전체기간</span>';
+  yl.forEach(function(y){ h += '<span class="chip'+(activeYear==y?" on":"")+'" data-y="'+y+'">'+y+' <b>'+ys[y]+'</b></span>'; });
+  if(activeYear!="__all__"){
+    var ms = {};
+    base.forEach(function(it){ var d=it.date||""; if(d.slice(0,4)==activeYear){ var m=d.slice(5,7); if(m) ms[m]=(ms[m]||0)+1; } });
+    h += '<div class="mrow"><span class="chip'+(activeMonth=="__all__"?" on":"")+'" data-m="__all__">'+activeYear+' 전체</span>';
+    Object.keys(ms).sort().forEach(function(m){ h += '<span class="chip'+(activeMonth==m?" on":"")+'" data-m="'+m+'">'+parseInt(m,10)+'월 <b>'+ms[m]+'</b></span>'; });
+    h += '</div>';
+  }
+  dchipsEl.innerHTML = h;
+}
+dchipsEl.addEventListener("click", function(e){
+  var el = e.target.closest ? e.target.closest(".chip") : null;
+  if(!el) return;
+  var y = el.getAttribute("data-y"), m = el.getAttribute("data-m");
+  if(y!=null){ activeYear = y; activeMonth = "__all__"; }
+  else if(m!=null){ activeMonth = m; }
+  else return;
+  renderLimit = 150; buildDateChips(); render();
+  window.scrollTo({top:0, behavior:"smooth"});
+});
 
 function card(it){
   var icon = it.item_type=="photo"?"🖼":it.item_type=="file"?"📎":it.item_type=="link"?"🔗":"📝";
@@ -176,15 +227,39 @@ function applyMore(){
     moreEl.firstChild.onclick = function(){ renderLimit += 300; paint(); };
   } else { moreEl.innerHTML = ''; }
 }
+function groupByDate(list){
+  var out = [], cur = null;
+  list.forEach(function(it){
+    var d = it.date || "날짜 없음";
+    if(!cur || cur.d !== d){ cur = {d:d, items:[]}; out.push(cur); }
+    cur.items.push(it);
+  });
+  return out;
+}
 function paint(){
-  if(!lastShown.length){ grid.innerHTML = '<div class="msg">'+(trashMode?'🗑 휴지통이 비었어':'🫙 여기엔 아무것도 없네')+'</div>'; moreEl.innerHTML=''; return; }
-  grid.innerHTML = lastShown.slice(0, renderLimit).map(card).join("");
+  if(!lastShown.length){ grid.className="grid"; grid.innerHTML = '<div class="msg">'+(trashMode?'🗑 휴지통이 비었어':'🫙 여기엔 아무것도 없네')+'</div>'; moreEl.innerHTML=''; return; }
+  var slice = lastShown.slice(0, renderLimit);
+  if(dateMode && !trashMode){
+    grid.className = "dlist";
+    grid.innerHTML = groupByDate(slice).map(function(g){
+      return '<section class="dsec"><div class="dhead">'+esc(g.d)+'<span class="dcnt">'+g.items.length+'</span><span class="ln"></span></div>'
+           + '<div class="grid">'+g.items.map(card).join("")+'</div></section>';
+    }).join("");
+  } else {
+    grid.className = "grid";
+    grid.innerHTML = slice.map(card).join("");
+  }
   applyMore();
 }
 function render(){
   var q = (searchEl.value||"").toLowerCase();
   lastShown = DATA.filter(function(it){
     if(!trashMode && activeTopic!="__all__" && (it.topic||"기타")!=activeTopic) return false;
+    if(!trashMode && activeYear!="__all__"){
+      var d = it.date || "";
+      if(d.slice(0,4) != activeYear) return false;
+      if(activeMonth!="__all__" && d.slice(5,7) != activeMonth) return false;
+    }
     if(q){
       var hay = ((it.summary||"")+" "+(it.content||"")+" "+(it.topic||"")+" "+((it.tags||[]).join(" "))).toLowerCase();
       if(hay.indexOf(q)<0) return false;
@@ -213,6 +288,7 @@ function load(){
     DATA = d.items || [];
     renderLimit = 150;
     buildChips();
+    buildDateChips();
     render();
   }).catch(function(e){
     grid.innerHTML = '<div class="msg">⚠️ 못 불러왔어. 인터넷 확인하고 🔄 눌러줘.<br><small>'+esc(e.message)+'</small></div>';
@@ -322,10 +398,23 @@ if(canWrite){
     trashMode = !trashMode;
     this.classList.toggle("on", trashMode);
     document.getElementById("fab").style.display = trashMode ? "none" : "";
-    searchEl.value = ""; activeTopic = "__all__";
+    searchEl.value = ""; activeTopic = "__all__"; activeYear = "__all__"; activeMonth = "__all__";
     load();
   };
 }
+
+var dateBtn = document.getElementById("dateBtn");
+function syncDateBtn(){
+  dateBtn.classList.toggle("on", dateMode);
+  dateBtn.textContent = dateMode ? "📅 날짜별" : "🗂 카드";
+}
+dateBtn.onclick = function(){
+  dateMode = !dateMode;
+  localStorage.setItem("seorap_dateMode", dateMode ? "1" : "0");
+  syncDateBtn(); paint();
+};
+syncDateBtn();
+
 load();
 </script>
 </body>

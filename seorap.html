@@ -15,7 +15,8 @@ header{position:sticky;top:0;background:var(--bg);padding:16px 18px 10px;z-index
 h1{margin:0;font-size:19px;display:flex;align-items:center;gap:8px}
 .count{color:var(--sub);font-size:13px;font-weight:400;margin-left:6px}
 .hbtns{display:flex;gap:7px}
-.hbtn{border:none;background:var(--chip);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
+.hbtn{border:none;background:var(--chip);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+@media(max-width:430px){h1{font-size:16px}.hbtn{padding:8px 9px;font-size:12px}}
 .hbtn:active{transform:scale(.96)}
 .hbtn.on{background:var(--accent);color:#fff}
 .search{margin-top:12px;width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(140,120,180,.2);background:var(--card);color:var(--ink);font-size:16px;outline:none}

@@ -33,6 +33,12 @@ h1{margin:0;font-size:19px;display:flex;align-items:center;gap:8px}
 .dhead .ln{flex:1;height:1px;background:rgba(140,120,180,.2)}
 .dcnt{font-size:11.5px;font-weight:600;color:var(--accent);background:var(--chip);border-radius:999px;padding:2px 8px}
 .dlist .card .date{display:none}
+/* 날짜별 보기: 넓은 화면에선 날짜 묶음이 옆으로 죽 늘어서게 */
+.dlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px 14px;align-items:start}
+.dlist .dsec{margin:0;min-width:0}
+.dlist .dhead{margin:0 2px 9px}
+.dlist .grid{column-width:auto;column-count:1;column-gap:0}
+.dlist .dsec .card:last-child{margin-bottom:0}
 main{padding:14px 12px 40px}
 .grid{columns:260px;column-gap:12px}
 .card{break-inside:avoid;background:var(--card);border-radius:16px;padding:14px 15px;margin:0 0 12px;box-shadow:var(--shadow)}
@@ -74,6 +80,26 @@ main{padding:14px 12px 40px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:12px;font-size:14px;display:none;align-items:center;gap:14px;z-index:40;box-shadow:0 4px 18px rgba(0,0,0,.3)}
 .toast.on{display:flex}
 .toast button{background:none;border:none;color:var(--accent);font-weight:700;font-size:14px;cursor:pointer}
+/* ===== 통계 ===== */
+.stats{max-width:680px;margin:0 auto}
+.scard{background:var(--card);border-radius:16px;padding:15px 16px;margin:0 0 12px;box-shadow:var(--shadow)}
+.scard h3{margin:0 0 12px;font-size:13px;color:var(--sub);font-weight:700;letter-spacing:.03em}
+.big{display:flex;gap:12px;flex-wrap:wrap}
+.bigit{flex:1 1 100px;min-width:96px}
+.bignum{font-size:25px;font-weight:700;color:var(--accent);line-height:1.15}
+.bignum.warn{color:var(--danger)}
+.bignum small{font-size:14px;font-weight:600}
+.biglab{font-size:11.5px;color:var(--sub);margin-top:3px;line-height:1.35}
+.brow{display:flex;align-items:center;gap:8px;margin:5px 0 0}
+.brow .bl{flex:0 0 42px;text-align:right;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.brow .bt{flex:1;height:15px;background:var(--chip);border-radius:5px;overflow:hidden}
+.brow .bf{height:100%;background:var(--accent);border-radius:5px;min-width:2px}
+.brow .bf.dim{opacity:.45}
+.brow .bv{flex:0 0 34px;font-size:12px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.bsub{font-size:11px;color:var(--sub);margin:2px 0 7px 50px;opacity:.85}
+.note{font-size:12px;color:var(--sub);margin-top:12px;line-height:1.6;border-top:1px solid rgba(140,120,180,.15);padding-top:10px}
+.glist{font-size:12.5px;color:var(--sub);line-height:1.75;font-variant-numeric:tabular-nums}
+.glist b{color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
@@ -81,6 +107,7 @@ main{padding:14px 12px 40px}
   <div class="htop">
     <h1>🗄️ 속삭이는 서랍<span class="count" id="count"></span></h1>
     <div class="hbtns">
+      <button class="hbtn" id="statsBtn">📊 통계</button>
       <button class="hbtn" id="dateBtn">📅 날짜별</button>
       <button class="hbtn" id="trashBtn" style="display:none">🗑 휴지통</button>
       <button class="hbtn" id="refresh">🔄</button>
@@ -123,6 +150,9 @@ var activeYear = "__all__";
 var activeMonth = "__all__";
 var dateMode = localStorage.getItem("seorap_dateMode") !== "0";
 var trashMode = false;
+var statsMode = false;
+var GAP_MIN = 5;   // "긴 공백" 기준일
+
 var renderLimit = 150;
 var lastShown = [];
 var editingSeq = null;
@@ -201,6 +231,147 @@ dchipsEl.addEventListener("click", function(e){
   window.scrollTo({top:0, behavior:"smooth"});
 });
 
+// ===== 통계 =====
+function p2(n){return String(n).padStart(2,"0");}
+function todayKST(){
+  var d=new Date();
+  var k=new Date(d.getTime()+(d.getTimezoneOffset()*60000)+9*3600000);
+  return k.getFullYear()+"."+p2(k.getMonth()+1)+"."+p2(k.getDate());
+}
+function dnum(s){return new Date(String(s).replace(/\./g,"-")+"T00:00:00Z").getTime();}
+function dgap(a,b){return Math.round((dnum(b)-dnum(a))/86400000);}
+
+function computeStats(){
+  var pool = topicPool();
+  var byDay = {};
+  pool.forEach(function(it){ if(it.date) byDay[it.date] = (byDay[it.date]||0)+1; });
+  var days = Object.keys(byDay).sort();
+  if(!days.length) return null;
+
+  // 공백(빈 날 수) = 연속 기록일 사이 간격 - 1
+  var gaps = [];
+  for(var i=1;i<days.length;i++){
+    var g = dgap(days[i-1], days[i]) - 1;
+    if(g > 0) gaps.push({from:days[i-1], to:days[i], g:g});
+  }
+
+  var today = todayKST();
+  var last = days[days.length-1];
+  var cur = Math.max(0, dgap(last, today));
+  var thisYear = today.slice(0,4);
+
+  // 연도별
+  var yr = {};
+  days.forEach(function(d){
+    var y = d.slice(0,4);
+    if(!yr[y]) yr[y] = {days:0, notes:0, g5:0, max:0};
+    yr[y].days++; yr[y].notes += byDay[d];
+  });
+  gaps.forEach(function(x){
+    var y = x.to.slice(0,4);
+    if(!yr[y]) return;
+    if(x.g >= GAP_MIN) yr[y].g5++;
+    if(x.g > yr[y].max) yr[y].max = x.g;
+  });
+
+  // 월별
+  var ym = {};
+  days.forEach(function(d){ var k=d.slice(0,7); ym[k] = (ym[k]||0) + byDay[d]; });
+
+  // 최근 12개월 공백 빈도
+  var cut = new Date(dnum(today) - 365*86400000);
+  var cutS = cut.getUTCFullYear()+"."+p2(cut.getUTCMonth()+1)+"."+p2(cut.getUTCDate());
+  var recent = gaps.filter(function(x){ return x.to >= cutS && x.g >= GAP_MIN; });
+
+  var yearGaps = gaps.filter(function(x){ return x.to.slice(0,4)===thisYear && x.g>=GAP_MIN; });
+  var yearMax = yearGaps.reduce(function(m,x){return Math.max(m,x.g);}, 0);
+  var longerThisYear = yearGaps.filter(function(x){ return x.g >= cur; }).length;
+
+  return {
+    byDay:byDay, days:days, gaps:gaps, yr:yr, ym:ym,
+    today:today, last:last, cur:cur, thisYear:thisYear,
+    yearGaps:yearGaps, yearMax:yearMax, longerThisYear:longerThisYear,
+    recent12:recent.length, notes:pool.length,
+    label: (activeTopic=="__all__" ? "전체" : activeTopic)
+  };
+}
+
+function bar(label, val, max, sub, dim){
+  var w = max>0 ? Math.max(1, Math.round(val/max*100)) : 0;
+  return '<div class="brow"><span class="bl">'+esc(label)+'</span>'
+       + '<span class="bt"><span class="bf'+(dim?' dim':'')+'" style="width:'+w+'%"></span></span>'
+       + '<span class="bv">'+val+'</span></div>'
+       + (sub ? '<div class="bsub">'+esc(sub)+'</div>' : '');
+}
+
+function renderStats(){
+  var s = computeStats();
+  if(!s){ grid.className="stats"; grid.innerHTML='<div class="msg">셀 게 없네</div>'; moreEl.innerHTML=''; return; }
+  var h = '';
+
+  // 1) 지금 상태
+  var warn = s.cur >= GAP_MIN;
+  h += '<div class="scard"><h3>지금</h3><div class="big">'
+     + '<div class="bigit"><div class="bignum'+(warn?' warn':'')+'">'+s.cur+'<small>일째</small></div><div class="biglab">비어 있음<br>마지막 '+esc(s.last)+'</div></div>'
+     + '<div class="bigit"><div class="bignum">'+(s.longerThisYear)+'<small>번</small></div><div class="biglab">올해 이만큼<br>이상 비었던 적</div></div>'
+     + '<div class="bigit"><div class="bignum">'+s.yearMax+'<small>일</small></div><div class="biglab">올해 최장 공백</div></div>'
+     + '<div class="bigit"><div class="bignum">'+s.recent12+'<small>번</small></div><div class="biglab">최근 1년 '+GAP_MIN+'일+<br>공백 횟수</div></div>'
+     + '</div>';
+  if(s.recent12 > 0){
+    h += '<div class="note">최근 1년 기준 평균 <b>'+Math.round(365/s.recent12)+'일에 한 번</b>씩 '+GAP_MIN+'일 이상 비었어. '
+       + (warn
+          ? (s.longerThisYear>0
+             ? '지금 '+s.cur+'일은 올해만 <b>'+s.longerThisYear+'번</b> 있던 일이야.'
+             : '지금 '+s.cur+'일은 올해 처음이야.')
+          : '지금은 공백 구간 아니야.')
+       + '</div>';
+  }
+  h += '</div>';
+
+  // 2) 연도별
+  var ys = Object.keys(s.yr).sort().reverse();
+  var maxNotes = ys.reduce(function(m,y){return Math.max(m, s.yr[y].notes);}, 0);
+  h += '<div class="scard"><h3>연도별 · '+esc(s.label)+'</h3>';
+  ys.forEach(function(y){
+    var v = s.yr[y];
+    h += bar(y, v.notes, maxNotes,
+      v.days+'일 기록 · '+GAP_MIN+'일+공백 '+v.g5+'회 · 최장 '+v.max+'일',
+      y===s.thisYear);
+  });
+  h += '<div class="note">막대는 노트 수, 밑줄은 <b>실제로 적은 날 수</b>. 올해는 진행 중이라 흐리게 뒀어.<br>'
+     + '노트 '+s.notes+'개 / 기록한 날 '+s.days.length+'일 = 하루 <b>'+(s.notes/s.days.length).toFixed(2)+'개</b></div></div>';
+
+  // 3) 최근 24개월
+  var mk = [], t = s.today;
+  var Y = parseInt(t.slice(0,4),10), M = parseInt(t.slice(5,7),10);
+  for(var i=23;i>=0;i--){
+    var yy = Y, mm = M - i;
+    while(mm < 1){ mm += 12; yy -= 1; }
+    mk.push(yy+"."+p2(mm));
+  }
+  var maxM = mk.reduce(function(m,k){return Math.max(m, s.ym[k]||0);}, 0);
+  h += '<div class="scard"><h3>최근 24개월</h3>';
+  mk.forEach(function(k){
+    var isNow = (k === s.today.slice(0,7));
+    h += bar(k.slice(2).replace(".","/"), s.ym[k]||0, maxM, "", isNow);
+  });
+  h += '<div class="note">이번 달은 진행 중이라 흐리게.</div></div>';
+
+  // 4) 올해 공백 목록
+  if(s.yearGaps.length){
+    h += '<div class="scard"><h3>'+s.thisYear+'년 '+GAP_MIN+'일 이상 공백</h3><div class="glist">';
+    s.yearGaps.forEach(function(x,i){
+      h += (i+1)+'. '+esc(x.from)+' → '+esc(x.to)+' <b>'+x.g+'일</b><br>';
+    });
+    if(warn) h += '<span style="color:var(--danger)">'+(s.yearGaps.length+1)+'. '+esc(s.last)+' → 지금 <b>'+s.cur+'일</b> (진행 중)</span>';
+    h += '</div></div>';
+  }
+
+  grid.className = "stats";
+  grid.innerHTML = h;
+  moreEl.innerHTML = '';
+}
+
 function card(it){
   var icon = it.item_type=="photo"?"🖼":it.item_type=="file"?"📎":it.item_type=="link"?"🔗":"📝";
   var m = "";
@@ -253,6 +424,11 @@ function paint(){
   applyMore();
 }
 function render(){
+  if(statsMode && !trashMode){
+    countEl.textContent = topicPool().length+"개";
+    renderStats();
+    return;
+  }
   var q = (searchEl.value||"").toLowerCase();
   lastShown = DATA.filter(function(it){
     if(!trashMode && activeTopic!="__all__" && (it.topic||"기타")!=activeTopic) return false;
@@ -271,6 +447,7 @@ function render(){
   paint();
 }
 window.addEventListener("scroll", function(){
+  if(statsMode) return;
   if(renderLimit >= lastShown.length) return;
   if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 700){
     renderLimit += 300; paint();
@@ -397,12 +574,26 @@ if(canWrite){
   overlay.onclick = function(e){ if(e.target===overlay) closeModal(); };
   document.getElementById("trashBtn").onclick = function(){
     trashMode = !trashMode;
+    if(trashMode && statsMode) statsBtn.onclick.call(statsBtn);
     this.classList.toggle("on", trashMode);
     document.getElementById("fab").style.display = trashMode ? "none" : "";
     searchEl.value = ""; activeTopic = "__all__"; activeYear = "__all__"; activeMonth = "__all__";
     load();
   };
 }
+
+var statsBtn = document.getElementById("statsBtn");
+statsBtn.onclick = function(){
+  if(trashMode) return;
+  statsMode = !statsMode;
+  this.classList.toggle("on", statsMode);
+  searchEl.style.display = statsMode ? "none" : "";
+  dchipsEl.style.display = statsMode ? "none" : "";
+  document.getElementById("dateBtn").style.display = statsMode ? "none" : "";
+  document.getElementById("fab").style.display = statsMode ? "none" : "";
+  render();
+  window.scrollTo({top:0, behavior:"smooth"});
+};
 
 var dateBtn = document.getElementById("dateBtn");
 function syncDateBtn(){

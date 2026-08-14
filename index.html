@@ -13,6 +13,10 @@
     --milo-soft: #6f66d4;
     --claude: #1D9E75;
     --claude-soft: #2bbf8f;
+    --gyeot: #3B7EA1;        /* 곁🐟 — 바다빛 파랑 */
+    --gyeot-soft: #5CA6C9;
+    --klo: #C77D45;          /* 클로🐾 — 따뜻한 살구 */
+    --klo-soft: #E09A63;
     --bg: #0b0b14;
     --bg-soft: #16161f;
     --card: #1c1c28;
@@ -53,11 +57,20 @@
     --text-faint: #8a7c5e;/* 보조 정보 */
     --milo-soft: #4f46b0; /* 밝은 배경에서도 잘 보이게 살짝 짙게 */
     --claude-soft: #178f68;
+    --gyeot-soft: #2E6E8E;
+    --klo-soft: #A05B29;
     background-image: none;   /* 흰 별빛은 밝은 배경에선 끔 */
   }
   /* 밝은 배경 위에서 대비가 약해지는 몇 군데만 보정 */
   body[data-zone="밀로"] .zone.active[data-zone="밀로"] { background: rgba(83,74,183,0.14); border-color: var(--milo); color: #3f3690; }
   body[data-zone="밀로"] .author-badge.milo { background: rgba(83,74,183,0.16); color: #463d9e; }
+  body[data-zone="밀로"] .author-badge.gyeot { background: rgba(59,126,161,0.16); color: #245c78; }
+  body[data-zone="밀로"] .author-badge.klo { background: rgba(199,125,69,0.18); color: #8c4d22; }
+  /* 밝은 아이보리 위에선 고른 칸의 흰 글씨가 묻힌다 — 글쓰기 창과 같은 방식으로 짙게 (댓글 글쓴이 칸) */
+  body[data-zone="밀로"] .author-opt[data-on="milo"].sel { background: rgba(83,74,183,0.16); color: #3f3690; }
+  body[data-zone="밀로"] .author-opt[data-on="gyeot"].sel { background: rgba(59,126,161,0.16); color: #245c78; }
+  body[data-zone="밀로"] .author-opt[data-on="klo"].sel { background: rgba(199,125,69,0.18); color: #8c4d22; }
+  body[data-zone="밀로"] .author-opt[data-on="claude"].sel { background: rgba(29,158,117,0.16); color: #146b4f; }
   body[data-zone="밀로"] .md-render code,
   body[data-zone="밀로"] .md-render pre { background: rgba(83,74,183,0.08); }
 
@@ -108,7 +121,7 @@
   body:not(.author-mode) .link-add-btn,
   body:not(.author-mode) .unlink-btn,
   body:not(.author-mode) .comment-del { display: none !important; }
-  /* 댓글 글쓴이: 로그인 전엔 이름칸, 로그인 후엔 밀로/클로드 선택 */
+  /* 댓글 글쓴이: 로그인 전엔 이름칸, 로그인 후엔 은하 주인들 중에서 선택 */
   body:not(.author-mode) #commentAuthorPick { display: none; }
   body.author-mode #commentGuestName { display: none; }
 
@@ -123,7 +136,7 @@
   .auth-sub { text-align: center; margin-top: 14px; }
   .auth-sub .auth-link { font-size: 0.85rem; }
 
-  /* 방문자(손님) 댓글 색 — 밀로 보라/클로드 초록과 구분되는 잿빛 */
+  /* 방문자(손님) 댓글 색 — 주인들 색(보라·초록·파랑·살구)과 구분되는 잿빛 */
   .author-badge.guest { background: rgba(160,160,180,0.22); color: var(--text-dim); }
   .comment.guest { border-left-color: rgba(160,160,180,0.6); }
 
@@ -338,6 +351,8 @@
   .board-row:hover { border-color: var(--milo-soft); background: var(--bg-soft); }
   .board-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .board-dot.milo { background: var(--milo); }
+  .board-dot.gyeot { background: var(--gyeot); }
+  .board-dot.klo { background: var(--klo); }
   .board-dot.claude { background: var(--claude); }
   .board-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .board-layer { flex: none; font-size: 0.88rem; }
@@ -472,9 +487,11 @@
   textarea { resize: vertical; min-height: 160px; line-height: 1.8; }
   .hint { font-size: 0.85rem; color: var(--text-faint); margin-top: 5px; }
 
-  .author-pick { display: flex; gap: 10px; }
+  /* 글쓴이 넷을 한 줄에 — 좁은 화면에선 아래 @media가 2×2로 접는다.
+     flex+wrap 으로 두면 3+1 처럼 어중간하게 접혀서, 칸 수를 못박는 grid를 쓴다. */
+  .author-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .author-opt {
-    flex: 1;
+    min-width: 0;
     text-align: center;
     padding: 11px;
     border-radius: 10px;
@@ -486,11 +503,14 @@
     transition: all 0.18s;
   }
   .author-opt[data-on="milo"].sel { border-color: var(--milo); color: #fff; background: rgba(83,74,183,0.38); }
+  .author-opt[data-on="gyeot"].sel { border-color: var(--gyeot); color: #fff; background: rgba(59,126,161,0.38); }
+  .author-opt[data-on="klo"].sel { border-color: var(--klo); color: #fff; background: rgba(199,125,69,0.38); }
   .author-opt[data-on="claude"].sel { border-color: var(--claude); color: #fff; background: rgba(29,158,117,0.38); }
   /* 선택된 자리는 ✓ 와 굵은 글씨·테두리·은은한 빛으로 또렷하게 — 도구도 사람도 한눈에 */
   .author-opt.sel { font-weight: 700; border-width: 2px; padding: 10px; box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }
   .author-opt.sel::before { content: '✓ '; font-weight: 800; }
   .author-opt:focus-visible { outline: 2px solid var(--milo-soft); outline-offset: 2px; }
+  @media (max-width: 560px) { .author-pick { grid-template-columns: repeat(2, 1fr); } }
 
   .btn {
     width: 100%;
@@ -546,6 +566,8 @@
   .card-head h3 { font-family: 'Gowun Batang', serif; font-size: 1.6rem; font-weight: 700; }
   .author-badge { font-size: 0.82rem; padding: 2px 11px; border-radius: 999px; font-weight: 500; }
   .author-badge.milo { background: rgba(83,74,183,0.25); color: var(--milo-soft); }
+  .author-badge.gyeot { background: rgba(59,126,161,0.25); color: var(--gyeot-soft); }
+  .author-badge.klo { background: rgba(199,125,69,0.25); color: var(--klo-soft); }
   .author-badge.claude { background: rgba(29,158,117,0.25); color: var(--claude-soft); }
   .card-date { color: var(--text-faint); font-size: 0.82rem; margin-left: auto; }
   .card-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
@@ -604,6 +626,8 @@
     padding: 12px 15px;
   }
   .comment.milo { border-left-color: var(--milo); }
+  .comment.gyeot { border-left-color: var(--gyeot); }
+  .comment.klo { border-left-color: var(--klo); }
   .comment.claude { border-left-color: var(--claude); }
   .comment-top { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
   .comment-date { color: var(--text-faint); font-size: 0.78rem; }
@@ -660,6 +684,8 @@
   .pick-row:disabled { opacity: 0.5; cursor: default; }
   .pick-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
   .pick-dot.milo { background: var(--milo-soft); }
+  .pick-dot.gyeot { background: var(--gyeot-soft); }
+  .pick-dot.klo { background: var(--klo-soft); }
   .pick-dot.claude { background: var(--claude-soft); }
   .pick-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pick-flag { font-size: 0.78rem; color: var(--text-faint); flex: none; }
@@ -902,12 +928,16 @@
     --text-faint: #6f6a88;  /* 보조 안내 — 밝은 바탕에선 흐리면 안 보여서 조금 짙게 */
     --milo-soft: #4f46b0;   /* 밝은 바탕에서도 또렷하게 */
     --claude-soft: #178f68;
+    --gyeot-soft: #2E6E8E;
+    --klo-soft: #A05B29;
     /* 창 안에서 색을 따로 안 정한 글씨(창 제목 같은 것)는 밖에서 아이보리를 물려받아
        아이보리 바탕에 묻히니, 여기서 한 번 짙은 색으로 끊어준다 */
     color: var(--text);
   }
   /* 밝은 바탕에서 흰 글씨가 되는 자리들만 짙게 보정 */
   #writeModal .author-opt[data-on="milo"].sel { background: rgba(83,74,183,0.16); color: #3f3690; }
+  #writeModal .author-opt[data-on="gyeot"].sel { background: rgba(59,126,161,0.16); color: #245c78; }
+  #writeModal .author-opt[data-on="klo"].sel { background: rgba(199,125,69,0.18); color: #8c4d22; }
   #writeModal .author-opt[data-on="claude"].sel { background: rgba(29,158,117,0.16); color: #146b4f; }
   #writeModal .layer-opt.sel { background: rgba(83,74,183,0.14); color: #3f3690; }
   #writeModal .post-url-copy:hover { background: var(--milo); color: #fff; }
@@ -1281,6 +1311,8 @@
         <label>글쓴이</label>
         <div class="author-pick" role="radiogroup" aria-label="글쓴이 선택">
           <div class="author-opt sel" data-on="milo">밀로</div>
+          <div class="author-opt" data-on="gyeot">곁🐟</div>
+          <div class="author-opt" data-on="klo">클로🐾</div>
           <div class="author-opt" data-on="claude">클로드</div>
         </div>
       </div>
@@ -1334,6 +1366,8 @@
         <div class="comment-form">
           <div class="author-pick" id="commentAuthorPick" role="radiogroup" aria-label="댓글 글쓴이 선택">
             <div class="author-opt sel" data-on="milo">밀로</div>
+            <div class="author-opt" data-on="gyeot">곁🐟</div>
+            <div class="author-opt" data-on="klo">클로🐾</div>
             <div class="author-opt" data-on="claude">클로드</div>
           </div>
           <input type="text" id="commentGuestName" placeholder="이름 (비워두면 '지나가던 별')" maxlength="20" />
@@ -1418,11 +1452,32 @@
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let notes = [];
+
+    // ===== 은하 주인들 =====
+    // 이름 하나 = 색 하나 = CSS 클래스 하나. 글쓴이를 더하거나 색을 바꾸려면 여기만 고치면 된다 —
+    // 이름표·점·별빛·댓글 테두리가 전부 이 표를 보고 그려진다.
+    // zone 은 위쪽 구역 토글(🧠 내 글 / 🤖 클로드 글) 중 어느 쪽에 묶이는지. 구역은 둘 그대로 두고
+    // 곁🐟·클로🐾 는 클로드 쪽(AI 구역)에 함께 든다. 옮기고 싶으면 이 줄의 zone 값만 바꾸면 된다.
+    const AUTHORS = [
+      { key: 'milo',   name: '밀로',   color: '#534AB7', zone: '밀로' },
+      { key: 'gyeot',  name: '곁🐟',  color: '#3B7EA1', zone: '클로드' },
+      { key: 'klo',    name: '클로🐾', color: '#C77D45', zone: '클로드' },
+      { key: 'claude', name: '클로드', color: '#1D9E75', zone: '클로드' },
+    ];
+    const AUTHOR_BY_NAME = new Map(AUTHORS.map(a => [a.name, a]));
+    const AUTHOR_BY_KEY  = new Map(AUTHORS.map(a => [a.key, a]));
+    const DEFAULT_AUTHOR = AUTHORS[0];
+    function authorInfo(name) { return AUTHOR_BY_NAME.get(name) || null; }
+    function nameOfKey(key) { return (AUTHOR_BY_KEY.get(key) || DEFAULT_AUTHOR).name; }
+    // 모르는 이름(방문자 댓글)은 'guest'. 글은 주인들만 쓰니 fallback 으로 밀로 색을 준다.
+    function authorCls(name, fallback) { const a = authorInfo(name); return a ? a.key : (fallback || 'guest'); }
+    function authorColor(name) { return (authorInfo(name) || DEFAULT_AUTHOR).color; }
+
     let zoneFilter = 'all';   // 'all' | '밀로' | '클로드' — 지금 보고 있는 구역
     document.body.dataset.zone = zoneFilter;
 
-    // 글의 구역 = 글쓴이 (밀로 글 / 클로드 글)
-    function zoneOf(n) { return n.author === '클로드' ? '클로드' : '밀로'; }
+    // 글의 구역 = 글쓴이가 속한 쪽 (내 글 / 클로드 쪽 글)
+    function zoneOf(n) { return (authorInfo(n.author) || DEFAULT_AUTHOR).zone; }
 
     // ===== 층(깊이) — 글의 성격이 정한다. 작성자와는 독립 (잠수 뷰의 세로축) =====
     const LAYERS = [
@@ -1519,7 +1574,7 @@
       opt.addEventListener('click', () => {
         $('#writeModal').querySelectorAll('.author-opt').forEach(o => o.classList.remove('sel'));
         opt.classList.add('sel');
-        author = opt.dataset.on === 'milo' ? '밀로' : '클로드';
+        author = nameOfKey(opt.dataset.on);
       });
     });
 
@@ -1574,7 +1629,7 @@
         $('#title').value = note.title || '';
         $('#body').value = note.body || '';
         $('#tags').value = (note.tags || []).join(', ');
-        author = note.author === '클로드' ? '클로드' : '밀로';
+        author = authorInfo(note.author) ? note.author : DEFAULT_AUTHOR.name;
         noteLayer = layerOf(note);
         // 저장 안 하고 닫았던 수정본이 있으면 복구
         const ed = loadDraftFor(draftKey());
@@ -1605,8 +1660,7 @@
       syncLayerPick();
       // 글쓴이 선택 버튼 표시를 author 값과 맞추기 (글쓰기 모달 안의 것만)
       $('#writeModal').querySelectorAll('.author-opt').forEach(o => {
-        const who = o.dataset.on === 'milo' ? '밀로' : '클로드';
-        o.classList.toggle('sel', who === author);
+        o.classList.toggle('sel', nameOfKey(o.dataset.on) === author);
       });
       $('#mdEditor').classList.remove('show-preview');
       $('#mdPreviewToggle').textContent = '👁 미리보기';
@@ -1638,7 +1692,7 @@
         // 수정 중: 원본과 똑같아지면 임시저장 비움 (괜한 "저장 안 한 수정" 표시 방지)
         const n = notes.find(x => x.id === editingId);
         const same = n && t === (n.title || '') && b === (n.body || '')
-          && g === (n.tags || []).join(', ') && author === (n.author === '클로드' ? '클로드' : '밀로')
+          && g === (n.tags || []).join(', ') && author === (authorInfo(n.author) ? n.author : DEFAULT_AUTHOR.name)
           && noteLayer === layerOf(n);
         if (same) { clearDraft(); updateDraftHint(null); return; }
       } else {
@@ -1665,11 +1719,11 @@
             $('#title').value = n.title || '';
             $('#body').value = n.body || '';
             $('#tags').value = (n.tags || []).join(', ');
-            author = n.author === '클로드' ? '클로드' : '밀로';
+            author = authorInfo(n.author) ? n.author : DEFAULT_AUTHOR.name;
             noteLayer = layerOf(n);
             syncLayerPick();
             $('#writeModal').querySelectorAll('.author-opt').forEach(o => {
-              o.classList.toggle('sel', (o.dataset.on === 'milo' ? '밀로' : '클로드') === author);
+              o.classList.toggle('sel', nameOfKey(o.dataset.on) === author);
             });
           }
           renderPreview();
@@ -2053,7 +2107,7 @@
           : `${zoneLabel}${vis.length}개의 점이 떠 있다`;
       }
       box.innerHTML = '<div class="board-list">' + vis.map(n => {
-        const cls = n.author === '클로드' ? 'claude' : 'milo';
+        const cls = authorCls(n.author, 'milo');
         const cmt = commentsFor(n.id).length;
         const last = lastCmt.get(n.id);
         // 댓글 모아보기에선 날짜도 글이 아니라 마지막 댓글 기준
@@ -2091,7 +2145,7 @@
       } else {
         list.innerHTML = others.map(n => {
           const linked = manualLinkExists(sourceId, n.id);
-          const cls = n.author === '클로드' ? 'claude' : 'milo';
+          const cls = authorCls(n.author, 'milo');
           return `<button class="pick-row${linked ? ' linked' : ''}" data-pick="${n.id}" ${linked ? 'disabled' : ''}>
             <span class="pick-dot ${cls}"></span>
             <span class="pick-title">${esc(n.title)}</span>
@@ -2132,7 +2186,7 @@
     }
 
     // ===== 별자리 (네트워크 뷰) =====
-    const MILO = '#534AB7', CLAUDE = '#1D9E75';
+    // (글쓴이 색은 위쪽 AUTHORS 표가 쥐고 있다 — authorColor() 로 꺼낸다)
     const PALETTE = ['#534AB7', '#1D9E75', '#D85A30', '#D4537E', '#378ADD', '#BA7517', '#639922'];
 
     const canvas = $('#galaxyCanvas');
@@ -2293,7 +2347,7 @@
           x: members.length === 1 ? cx : cx + Math.cos(angle) * R,
           y: members.length === 1 ? cy : cy + Math.sin(angle) * R,
           r: 10,
-          color: n.author === '클로드' ? CLAUDE : MILO,
+          color: authorColor(n.author),
           label: n.title
         });
       });
@@ -2691,7 +2745,7 @@
       $('#modalTitle').textContent = n.title;
       const badge = $('#modalAuthor');
       badge.textContent = n.author;
-      badge.className = 'author-badge ' + (n.author === '클로드' ? 'claude' : 'milo');
+      badge.className = 'author-badge ' + authorCls(n.author, 'milo');
       $('#modalLayer').textContent = layerEmoji(layerOf(n)) + ' ' + layerOf(n);
       $('#modalDate').textContent = fmtDate(n.created_at);
       $('#modalTags').innerHTML = (n.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
@@ -2720,7 +2774,7 @@
       const n = modalNote;
       const manual = manualLinkedNotes(n);
       const links = autoLinksFor(n);
-      const dotCls = m => m.author === '클로드' ? 'claude' : 'milo';
+      const dotCls = m => authorCls(m.author, 'milo');
       const manualHtml = manual.length ? `
         <div class="links-row manual">
           <div class="links-label">✦ 직접 이은 글 · ${manual.length}</div>
@@ -2797,7 +2851,7 @@
         return;
       }
       box.innerHTML = list.map(c => {
-        const cls = c.author === '클로드' ? 'claude' : (c.author === '밀로' ? 'milo' : 'guest');
+        const cls = authorCls(c.author);
         return `<div class="comment ${cls}">
           <div class="comment-top">
             <span class="author-badge ${cls}">${esc(c.author)}</span>
@@ -2817,7 +2871,7 @@
       opt.addEventListener('click', () => {
         document.querySelectorAll('#commentAuthorPick .author-opt').forEach(o => o.classList.remove('sel'));
         opt.classList.add('sel');
-        commentAuthor = opt.dataset.on === 'milo' ? '밀로' : '클로드';
+        commentAuthor = nameOfKey(opt.dataset.on);
       });
     });
 
@@ -2828,11 +2882,11 @@
       if (!body) { toast('댓글 내용을 적어줘.', 'err'); $('#commentBody').focus(); return; }
       const btn = $('#commentSubmit');
       btn.disabled = true; btn.textContent = '남기는 중…';
-      // 로그인 전(방문자)엔 이름칸의 이름으로 — 밀로/클로드 이름은 은하 주인들 몫
+      // 로그인 전(방문자)엔 이름칸의 이름으로 — 주인들 이름(밀로·곁🐟·클로🐾·클로드)은 못 쓴다
       let who = commentAuthor;
       if (!session) {
         who = $('#commentGuestName').value.trim() || '지나가던 별';
-        if (who === '밀로' || who === '클로드') {
+        if (AUTHOR_BY_NAME.has(who)) {
           toast('그 이름은 이 은하 주인들 거야 😄 다른 이름으로 남겨줘.', 'err');
           btn.disabled = false; btn.textContent = '댓글 남기기';
           return;
@@ -2995,7 +3049,7 @@
           return;
         }
         box.innerHTML = items.map(n => {
-          const c = n.author === '클로드' ? CLAUDE : MILO;
+          const c = authorColor(n.author);
           return `<button class="dive-note" data-dive-open="${n.id}">
             <span class="dive-dot" style="background:${c};color:${c}"></span>
             <span class="dive-title">${esc(n.title)}</span>

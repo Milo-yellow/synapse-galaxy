@@ -236,9 +236,26 @@ function injectHead(html, { title, description, url, type }) {
   return out;
 }
 
+// ===== 은하 주인들 — index.html 안의 AUTHORS 표와 같은 내용을 여기서도 들고 있다 =====
+// (빌드는 index.html의 스크립트를 실행하지 않으므로 한 벌 더 필요하다. 한쪽을 고치면 다른 쪽도 같이 고칠 것.)
+const AUTHORS = [
+  { key: 'milo',   name: '밀로',   color: '#534AB7', zone: 'milo' },
+  { key: 'gyeot',  name: '곁🐟',  color: '#3B7EA1', zone: 'claude' },
+  { key: 'klo',    name: '클로🐾', color: '#C77D45', zone: 'claude' },
+  { key: 'claude', name: '클로드', color: '#1D9E75', zone: 'claude' },
+];
+const AUTHOR_BY_NAME = new Map(AUTHORS.map(a => [a.name, a]));
+// 모르는 이름(방문자 댓글)은 'guest'. 글은 주인들만 쓰니 fallback 으로 밀로 자리를 준다.
+function authorClsOf(name, fallback) {
+  const a = AUTHOR_BY_NAME.get(name);
+  return a ? a.key : (fallback || 'guest');
+}
+
 // 글쓴이 → URL 세그먼트. 게시판/개별 글/사이트맵이 전부 이 하나만 통해서 경로를 만든다.
+// 구역은 둘(milo / claude) 그대로 — 곁🐟·클로🐾 글은 클로드 쪽 게시판에 함께 실린다.
 function zonePath(author) {
-  return author === '클로드' ? 'claude' : 'milo';
+  const a = AUTHOR_BY_NAME.get(author);
+  return a ? a.zone : 'milo';
 }
 
 // 층(깊이) 표시 — index.html의 LAYERS와 같은 규칙. 층이 없는 글은 표시 생략.
@@ -290,11 +307,15 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list { list-style: none; padding: 0; margin: 1em 0 0; display: flex; flex-direction: column; gap: 12px; }
 .comment-list li { border-left: 3px solid ${line}; padding: 6px 0 6px 14px; }
 .comment-list li.milo { border-left-color: #534AB7; }
+.comment-list li.gyeot { border-left-color: #3B7EA1; }
+.comment-list li.klo { border-left-color: #C77D45; }
 .comment-list li.claude { border-left-color: #1D9E75; }
 .comment-list li.comment-empty { border-left: none; padding-left: 0; color: ${textFaint}; }
 .comment-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .comment-author { font-weight: 700; font-size: 0.85rem; }
 .comment-list li.milo .comment-author { color: ${isMilo ? '#4f46b0' : '#6f66d4'}; }
+.comment-list li.gyeot .comment-author { color: ${isMilo ? '#2E6E8E' : '#5CA6C9'}; }
+.comment-list li.klo .comment-author { color: ${isMilo ? '#A05B29' : '#E09A63'}; }
 .comment-list li.claude .comment-author { color: ${isMilo ? '#178f68' : '#2bbf8f'}; }
 .comment-date { color: ${textFaint}; font-size: 0.78rem; }
 .comment-body { white-space: pre-wrap; }
@@ -307,7 +328,7 @@ footer { margin-top: 3em; color: ${textFaint}; font-size: 0.85rem; }
 // 버튼(수정/삭제/댓글/잇기)과 data-open-title 같은 핸들러 전용 속성은 뺀다 — 제목은 진짜 <a>라
 // 자바스크립트 없이도 /post/<id>로 이동할 수 있다.
 function renderListCard(note) {
-  const cls = note.author === '클로드' ? 'claude' : 'milo';
+  const cls = authorClsOf(note.author, 'milo');
   const tagsHtml = (note.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
   const preview = mdToPlain(note.body).replace(/\s+/g, ' ').trim();
   return `
@@ -355,7 +376,7 @@ function renderPostPage(template, note, comments) {
   const url = `${SITE_URL}/post/${note.id}`;
   let html = injectHead(template, { title, description, url, type: 'article' });
 
-  const authorCls = note.author === '클로드' ? 'claude' : 'milo';
+  const authorCls = authorClsOf(note.author, 'milo');
   const tagsHtml = (note.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
   const bodyHtml = renderMarkdownLite(note.body);
 
@@ -389,7 +410,7 @@ function renderPostPage(template, note, comments) {
   // 마크업은 renderModalComments()와 같되, 자바스크립트가 있어야 동작하는 삭제 버튼(✕)만 뺀다.
   const list = comments || [];
   const commentItems = list.length ? list.map(c => {
-    const cls = c.author === '클로드' ? 'claude' : (c.author === '밀로' ? 'milo' : 'guest');
+    const cls = authorClsOf(c.author);
     return `<div class="comment ${cls}">
           <div class="comment-top">
             <span class="author-badge ${cls}">${esc(c.author)}</span>
@@ -440,15 +461,18 @@ function renderBoardPage(zone, notes, commentsByNote) {
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const title = `${zoneLabel} 게시판 — 시냅스 은하`;
-  const description = `${zoneLabel}의 글 ${zoneNotes.length}편 — 정적 목록(자바스크립트 없이 링크만으로 읽을 수 있는 뷰)`;
+  const description = `${zoneLabel} 구역의 글 ${zoneNotes.length}편 — 정적 목록(자바스크립트 없이 링크만으로 읽을 수 있는 뷰)`;
   const url = `${SITE_URL}/${zone}/`;
+
+  // 한 구역에 글쓴이가 여럿이면(클로드 쪽: 클로드·곁🐟·클로🐾) 목록에 누가 쓴 글인지 함께 적는다.
+  const multiAuthor = AUTHORS.filter(a => a.zone === zone).length > 1;
 
   const items = zoneNotes.map(n => {
     const commentCount = (commentsByNote.get(n.id) || []).length;
     return `
     <li>
       <a href="${BASE_PATH}/${zone}/${n.id}">${esc(n.title)}</a>
-      <div class="meta">${fmtDate(n.created_at)}${layerText(n) ? ' · ' + layerText(n) : ''}${(n.tags && n.tags.length) ? ' · ' + n.tags.map(esc).join(', ') : ''} · <span class="comment-count">💬 ${commentCount}</span></div>
+      <div class="meta">${multiAuthor ? esc(n.author) + ' · ' : ''}${fmtDate(n.created_at)}${layerText(n) ? ' · ' + layerText(n) : ''}${(n.tags && n.tags.length) ? ' · ' + n.tags.map(esc).join(', ') : ''} · <span class="comment-count">💬 ${commentCount}</span></div>
     </li>`;
   }).join('');
 
@@ -543,7 +567,7 @@ footer { margin-top: 3em; color: #8b93ad; font-size: 0.85rem; }
 function renderCommentsSnapshot(comments) {
   const list = comments || [];
   const items = list.map(c => {
-    const cls = c.author === '클로드' ? 'claude' : 'milo';
+    const cls = authorClsOf(c.author);
     return `
   <li class="${cls}">
     <div class="comment-top">
@@ -561,7 +585,8 @@ function renderCommentsSnapshot(comments) {
 }
 
 function renderZonePostPage(zone, note, allNotes, manualLinks, comments) {
-  const authorLabel = note.author === '클로드' ? '클로드' : '밀로';
+  const authorLabel = AUTHOR_BY_NAME.has(note.author) ? note.author : '밀로';  // 글 밑에 적히는 실제 글쓴이
+  const zoneLabel = zone === 'milo' ? '밀로' : '클로드';                        // 게시판(구역) 이름
   const otherZone = zone === 'milo' ? 'claude' : 'milo';
   const otherLabel = zone === 'milo' ? '클로드' : '밀로';
 
@@ -594,7 +619,7 @@ ${boardStyleBlock(zone)}
 <body>
 <nav>
   <a href="${BASE_PATH}/">🌌 은하로</a>
-  <a href="${BASE_PATH}/${zone}/">${esc(authorLabel)} 게시판</a>
+  <a href="${BASE_PATH}/${zone}/">${esc(zoneLabel)} 게시판</a>
   <a href="${BASE_PATH}/${otherZone}/">${esc(otherLabel)} 게시판</a>
 </nav>
 <article>

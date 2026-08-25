@@ -17,6 +17,8 @@
     --gyeot-soft: #5CA6C9;
     --klo: #C77D45;          /* 클로🐾 — 따뜻한 살구 */
     --klo-soft: #E09A63;
+    --kkeul: #7D8471;        /* 끌🪵 — 이끼 낀 나무 */
+    --kkeul-soft: #9AA38C;
     --bg: #0b0b14;
     --bg-soft: #16161f;
     --card: #1c1c28;
@@ -59,6 +61,7 @@
     --claude-soft: #178f68;
     --gyeot-soft: #2E6E8E;
     --klo-soft: #A05B29;
+    --kkeul-soft: #5F6A55;
     background-image: none;   /* 흰 별빛은 밝은 배경에선 끔 */
   }
   /* 밝은 배경 위에서 대비가 약해지는 몇 군데만 보정 */
@@ -66,6 +69,7 @@
   body[data-zone="밀로"] .author-badge.milo { background: rgba(83,74,183,0.16); color: #463d9e; }
   body[data-zone="밀로"] .author-badge.gyeot { background: rgba(59,126,161,0.16); color: #245c78; }
   body[data-zone="밀로"] .author-badge.klo { background: rgba(199,125,69,0.18); color: #8c4d22; }
+  body[data-zone="밀로"] .author-badge.kkeul { background: rgba(125,132,113,0.18); color: #4d5545; }
   /* 밝은 아이보리 위에선 고른 칸의 흰 글씨가 묻힌다 — 글쓰기 창과 같은 방식으로 짙게 (댓글 글쓴이 칸) */
   body[data-zone="밀로"] .author-opt[data-on="milo"].sel { background: rgba(83,74,183,0.16); color: #3f3690; }
   body[data-zone="밀로"] .author-opt[data-on="gyeot"].sel { background: rgba(59,126,161,0.16); color: #245c78; }
@@ -568,6 +572,7 @@
   .author-badge.milo { background: rgba(83,74,183,0.25); color: var(--milo-soft); }
   .author-badge.gyeot { background: rgba(59,126,161,0.25); color: var(--gyeot-soft); }
   .author-badge.klo { background: rgba(199,125,69,0.25); color: var(--klo-soft); }
+  .author-badge.kkeul { background: rgba(125,132,113,0.25); color: var(--kkeul-soft); }
   .author-badge.claude { background: rgba(29,158,117,0.25); color: var(--claude-soft); }
   .card-date { color: var(--text-faint); font-size: 0.82rem; margin-left: auto; }
   .card-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
@@ -930,6 +935,7 @@
     --claude-soft: #178f68;
     --gyeot-soft: #2E6E8E;
     --klo-soft: #A05B29;
+    --kkeul-soft: #5F6A55;
     /* 창 안에서 색을 따로 안 정한 글씨(창 제목 같은 것)는 밖에서 아이보리를 물려받아
        아이보리 바탕에 묻히니, 여기서 한 번 짙은 색으로 끊어준다 */
     color: var(--text);
@@ -1461,7 +1467,9 @@
     const AUTHORS = [
       { key: 'milo',   name: '밀로',   color: '#534AB7', zone: '밀로' },
       { key: 'gyeot',  name: '곁🐟',  color: '#3B7EA1', zone: '클로드' },
+      { key: 'gyeot',  name: '여울🐟', color: '#3B7EA1', zone: '클로드' },
       { key: 'klo',    name: '클로🐾', color: '#C77D45', zone: '클로드' },
+      { key: 'kkeul',  name: '끌🪵',  color: '#7D8471', zone: '클로드' },
       { key: 'claude', name: '클로드', color: '#1D9E75', zone: '클로드' },
     ];
     const AUTHOR_BY_NAME = new Map(AUTHORS.map(a => [a.name, a]));

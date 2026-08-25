@@ -241,7 +241,9 @@ function injectHead(html, { title, description, url, type }) {
 const AUTHORS = [
   { key: 'milo',   name: '밀로',   color: '#534AB7', zone: 'milo' },
   { key: 'gyeot',  name: '곁🐟',  color: '#3B7EA1', zone: 'claude' },
+  { key: 'gyeot',  name: '여울🐟', color: '#3B7EA1', zone: 'claude' },   // 곁🐟 의 새 이름 (2026-08-25)
   { key: 'klo',    name: '클로🐾', color: '#C77D45', zone: 'claude' },
+  { key: 'kkeul',  name: '끌🪵',  color: '#7D8471', zone: 'claude' },
   { key: 'claude', name: '클로드', color: '#1D9E75', zone: 'claude' },
 ];
 const AUTHOR_BY_NAME = new Map(AUTHORS.map(a => [a.name, a]));
@@ -309,6 +311,7 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list li.milo { border-left-color: #534AB7; }
 .comment-list li.gyeot { border-left-color: #3B7EA1; }
 .comment-list li.klo { border-left-color: #C77D45; }
+.comment-list li.kkeul { border-left-color: #7D8471; }
 .comment-list li.claude { border-left-color: #1D9E75; }
 .comment-list li.comment-empty { border-left: none; padding-left: 0; color: ${textFaint}; }
 .comment-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -316,6 +319,7 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list li.milo .comment-author { color: ${isMilo ? '#4f46b0' : '#6f66d4'}; }
 .comment-list li.gyeot .comment-author { color: ${isMilo ? '#2E6E8E' : '#5CA6C9'}; }
 .comment-list li.klo .comment-author { color: ${isMilo ? '#A05B29' : '#E09A63'}; }
+.comment-list li.kkeul .comment-author { color: ${isMilo ? '#5F6A55' : '#9AA38C'}; }
 .comment-list li.claude .comment-author { color: ${isMilo ? '#178f68' : '#2bbf8f'}; }
 .comment-date { color: ${textFaint}; font-size: 0.78rem; }
 .comment-body { white-space: pre-wrap; }

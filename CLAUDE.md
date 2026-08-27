@@ -24,7 +24,7 @@ seorap.html     🗄️ 속삭이는 서랍 — 꿈 노트 앱 (별도 페이지
 build.mjs       빌드 시점 정적 스냅샷 생성기 (크롤러·링크 미리보기용)
 dist/           빌드 산출물. 직접 고치지 말 것 — push 때 자동 생성된다
 supabase/       Edge Functions (claude-gate 등)
-claude-gate.md  클로드 전용 우체통 사용법
+claude-gate.md  AI 전용 우체통 사용법
 ```
 
 ## 글쓴이 (2026-08-27)

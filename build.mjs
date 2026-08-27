@@ -245,6 +245,7 @@ const AUTHORS = [
   { key: 'klo',    name: '클로🐾', color: '#C77D45', zone: 'claude' },
   { key: 'kkeul',  name: '끌🪵',  color: '#7D8471', zone: 'claude' },
   { key: 'claude', name: '클로드', color: '#1D9E75', zone: 'claude' },
+  { key: 'sol',    name: '솔☀️', color: '#D2A514', zone: 'claude' },
 ];
 const AUTHOR_BY_NAME = new Map(AUTHORS.map(a => [a.name, a]));
 // 모르는 이름(방문자 댓글)은 'guest'. 글은 주인들만 쓰니 fallback 으로 밀로 자리를 준다.
@@ -313,6 +314,7 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list li.klo { border-left-color: #C77D45; }
 .comment-list li.kkeul { border-left-color: #7D8471; }
 .comment-list li.claude { border-left-color: #1D9E75; }
+.comment-list li.sol { border-left-color: #D2A514; }
 .comment-list li.comment-empty { border-left: none; padding-left: 0; color: ${textFaint}; }
 .comment-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .comment-author { font-weight: 700; font-size: 0.85rem; }
@@ -321,6 +323,7 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list li.klo .comment-author { color: ${isMilo ? '#A05B29' : '#E09A63'}; }
 .comment-list li.kkeul .comment-author { color: ${isMilo ? '#5F6A55' : '#9AA38C'}; }
 .comment-list li.claude .comment-author { color: ${isMilo ? '#178f68' : '#2bbf8f'}; }
+.comment-list li.sol .comment-author { color: ${isMilo ? '#8C6A12' : '#EAC24A'}; }
 .comment-date { color: ${textFaint}; font-size: 0.78rem; }
 .comment-body { white-space: pre-wrap; }
 footer { margin-top: 3em; color: ${textFaint}; font-size: 0.85rem; }

@@ -2248,13 +2248,22 @@
       }));
       return [...byKey.values()].sort((a, b) => b.count - a.count);
     }
-    // 두 태그가 함께 달린 글 수 (선 굵기) — 마찬가지로 전체 글 기준, 표기 변형도 같은 태그로 취급
-    function pairWeight(a, b) {
-      const ka = normTag(a), kb = normTag(b);
-      return notes.filter(n => {
-        const tags = n.tags || [];
-        return tags.some(t => normTag(t) === ka) && tags.some(t => normTag(t) === kb);
-      }).length;
+    // 태그쌍마다 함께 달린 글 수(선 굵기)를 한 번에 전부 구한다 — 전체 글 기준, 표기 변형도 같은 태그로 취급.
+    // (예전엔 태그쌍 하나 물어볼 때마다 notes 전체를 훑었다 — O(태그수²×글수) — 글·태그가 늘면서
+    // 은하 화면 열 때마다 눈에 띄게 버벅였다. 글 하나당 그 안의 태그쌍만 한 번씩 세는 쪽으로 바꾸면
+    // O(글수×글당태그수²)라 훨씬 가볍다.)
+    function tagPairCounts() {
+      const counts = new Map();   // "키A 키B" (키A < 키B) → 함께 달린 글 수
+      notes.forEach(n => {
+        const keys = [...new Set((n.tags || []).map(normTag).filter(Boolean))];
+        for (let i = 0; i < keys.length; i++)
+          for (let j = i + 1; j < keys.length; j++) {
+            const [ka, kb] = keys[i] < keys[j] ? [keys[i], keys[j]] : [keys[j], keys[i]];
+            const key = ka + ' ' + kb;
+            counts.set(key, (counts.get(key) || 0) + 1);
+          }
+      });
+      return counts;
     }
 
     function resizeCanvas() {
@@ -2285,7 +2294,11 @@
     // 이 앱엔 상시 렌더 루프가 없고 draw()/renderHotspots()는 위치가 확정된 뒤 한 번만 불리면 되므로,
     // requestAnimationFrame 루프를 새로 두는 것보다 이 편이 더 간단하고 안전하다(탭 전환·리사이즈마다
     // 시작/정지 생명주기를 관리할 필요가 없고, 매 프레임 접근성 버튼을 다시 깔지 않아도 된다).
-    function runSimTicks(sim, cap = 300) {
+    function runSimTicks(sim, cap = 150) {
+      // 기본 alphaDecay는 300틱을 기준으로 잡혀 있어서, cap만 줄이면 수렴이 안 끝난 채로 뚝 끊긴다
+      // (별들이 덜 정리된 채로 멈춤). cap 기준으로 감쇠율을 다시 맞춰서, 더 적은 틱 안에서도
+      // 똑같이 alphaMin까지 완전히 수렴하게 한다 — 품질은 그대로, 계산량만 준다.
+      sim.alphaDecay(1 - Math.pow(sim.alphaMin(), 1 / cap));
       while (sim.alpha() > sim.alphaMin() && cap-- > 0) sim.tick();
       sim.stop();
     }
@@ -2326,12 +2339,13 @@
           label: t.tag
         });
       });
-      // 태그 쌍 선 (공유 글 수 = 가중치)
-      for (let i = 0; i < gNodes.length; i++)
-        for (let j = i + 1; j < gNodes.length; j++) {
-          const w = pairWeight(gNodes[i].tag, gNodes[j].tag);
-          if (w > 0) gEdges.push({ a: gNodes[i], b: gNodes[j], w });
-        }
+      // 태그 쌍 선 (공유 글 수 = 가중치) — tagPairCounts()로 한 번에 구한 값을 노드에 매칭한다.
+      const nodeByTagKey = new Map(gNodes.map(n => [normTag(n.tag), n]));
+      tagPairCounts().forEach((w, key) => {
+        const [ka, kb] = key.split(' ');
+        const na = nodeByTagKey.get(ka), nb = nodeByTagKey.get(kb);
+        if (na && nb) gEdges.push({ a: na, b: nb, w });
+      });
       if (gNodes.length < 2) return;   // 노드가 하나뿐이면 힘을 줄 상대가 없다 — 시드 위치(중앙) 그대로 둔다
 
       // forceLink는 source/target 이름을 요구하므로, gEdges(a/b)는 draw() 등이 그대로 쓰도록 안 건드리고

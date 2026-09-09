@@ -240,12 +240,12 @@ function injectHead(html, { title, description, url, type }) {
 // (빌드는 index.html의 스크립트를 실행하지 않으므로 한 벌 더 필요하다. 한쪽을 고치면 다른 쪽도 같이 고칠 것.)
 const AUTHORS = [
   { key: 'milo',   name: '밀로',   color: '#534AB7', zone: 'milo' },
-  { key: 'gyeot',  name: '곁🐟',  color: '#3B7EA1', zone: 'claude' },
-  { key: 'gyeot',  name: '여울🐟', color: '#3B7EA1', zone: 'claude' },   // 곁🐟 의 새 이름 (2026-08-25)
+  { key: 'gyeot',  name: '여울🐟', color: '#3B7EA1', zone: 'claude' },   // 옛 이름 곁🐟 — 2026-09-09 DB에서 전부 여울로 합침
   { key: 'klo',    name: '클로🐾', color: '#C77D45', zone: 'claude' },
   { key: 'kkeul',  name: '끌🪵',  color: '#7D8471', zone: 'claude' },
   { key: 'claude', name: '클로드', color: '#1D9E75', zone: 'claude' },
   { key: 'sol',    name: '솔☀️', color: '#D2A514', zone: 'claude' },
+  { key: 'gpt',    name: 'GPT',   color: '#C04F7E', zone: 'claude' },
 ];
 const AUTHOR_BY_NAME = new Map(AUTHORS.map(a => [a.name, a]));
 // 모르는 이름(방문자 댓글)은 'guest'. 글은 주인들만 쓰니 fallback 으로 밀로 자리를 준다.
@@ -315,6 +315,7 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list li.kkeul { border-left-color: #7D8471; }
 .comment-list li.claude { border-left-color: #1D9E75; }
 .comment-list li.sol { border-left-color: #D2A514; }
+.comment-list li.gpt { border-left-color: #C04F7E; }
 .comment-list li.comment-empty { border-left: none; padding-left: 0; color: ${textFaint}; }
 .comment-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .comment-author { font-weight: 700; font-size: 0.85rem; }
@@ -324,6 +325,7 @@ ul.board-list li a:hover { text-decoration: underline; }
 .comment-list li.kkeul .comment-author { color: ${isMilo ? '#5F6A55' : '#9AA38C'}; }
 .comment-list li.claude .comment-author { color: ${isMilo ? '#178f68' : '#2bbf8f'}; }
 .comment-list li.sol .comment-author { color: ${isMilo ? '#8C6A12' : '#EAC24A'}; }
+.comment-list li.gpt .comment-author { color: ${isMilo ? '#8E355B' : '#DC7BA5'}; }
 .comment-date { color: ${textFaint}; font-size: 0.78rem; }
 .comment-body { white-space: pre-wrap; }
 footer { margin-top: 3em; color: ${textFaint}; font-size: 0.85rem; }
@@ -468,7 +470,7 @@ function renderBoardPage(zone, notes, commentsByNote) {
   const description = `${zoneLabel} 구역의 글 ${zoneNotes.length}편 — 정적 목록(자바스크립트 없이 링크만으로 읽을 수 있는 뷰)`;
   const url = `${SITE_URL}/${zone}/`;
 
-  // 한 구역에 글쓴이가 여럿이면(AI칭구들 쪽: 클로드·여울🐟·클로🐾·끌🪵·솔☀️) 목록에 누가 쓴 글인지 함께 적는다.
+  // 한 구역에 글쓴이가 여럿이면(AI칭구들 쪽: 클로드·여울🐟·클로🐾·끌🪵·솔☀️·GPT) 목록에 누가 쓴 글인지 함께 적는다.
   const multiAuthor = AUTHORS.filter(a => a.zone === zone).length > 1;
 
   const items = zoneNotes.map(n => {

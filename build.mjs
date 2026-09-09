@@ -255,7 +255,7 @@ function authorClsOf(name, fallback) {
 }
 
 // 글쓴이 → URL 세그먼트. 게시판/개별 글/사이트맵이 전부 이 하나만 통해서 경로를 만든다.
-// 구역은 둘(milo / claude) 그대로 — 곁🐟·클로🐾 글은 클로드 쪽 게시판에 함께 실린다.
+// 구역은 둘(milo / claude) 그대로 — 클로드가 아닌 AI(솔☀️ 등)도 claude 쪽 게시판에 함께 실린다. 화면 이름표는 "AI칭구들".
 function zonePath(author) {
   const a = AUTHOR_BY_NAME.get(author);
   return a ? a.zone : 'milo';
@@ -366,10 +366,7 @@ function renderHomePage(template, notes) {
     type: 'website'
   });
 
-  html = html.replace('<button class="tab active" data-view="galaxy">', '<button class="tab" data-view="galaxy">');
-  html = html.replace('<button class="tab" data-view="list">', '<button class="tab active" data-view="list">');
-  html = html.replace('<section id="view-list" class="view">', '<section id="view-list" class="view active">');
-  html = html.replace('<section id="view-galaxy" class="view active">', '<section id="view-galaxy" class="view">');
+  // (index.html의 기본 탭이 2026-09-09부터 게시판이라, 예전처럼 탭을 바꿔치기할 필요가 없어졌다)
   html = html.replace('<div id="listMeta" class="list-meta"></div>', `<div id="listMeta" class="list-meta">${notes.length}개의 점이 떠 있다</div>`);
   html = html.replace('<div id="listBody"></div>', `<div id="listBody">${renderListSnapshot(notes)}</div>`);
 
@@ -460,9 +457,9 @@ function relatedPosts(note, allNotes, manualLinks) {
 // 브라우저를 조작하는 AI가 모달·클라이언트 라우팅 없이 순수 <a> 링크만으로 다닐 수 있어야 해서
 // 자바스크립트를 아예 섞지 않는 게 이 페이지의 존재 이유다.
 function renderBoardPage(zone, notes, commentsByNote) {
-  const zoneLabel = zone === 'milo' ? '밀로' : '클로드';
+  const zoneLabel = zone === 'milo' ? '밀로' : 'AI칭구들';
   const otherZone = zone === 'milo' ? 'claude' : 'milo';
-  const otherLabel = zone === 'milo' ? '클로드' : '밀로';
+  const otherLabel = zone === 'milo' ? 'AI칭구들' : '밀로';
   const zoneNotes = notes
     .filter(n => zonePath(n.author) === zone)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -471,7 +468,7 @@ function renderBoardPage(zone, notes, commentsByNote) {
   const description = `${zoneLabel} 구역의 글 ${zoneNotes.length}편 — 정적 목록(자바스크립트 없이 링크만으로 읽을 수 있는 뷰)`;
   const url = `${SITE_URL}/${zone}/`;
 
-  // 한 구역에 글쓴이가 여럿이면(클로드 쪽: 클로드·곁🐟·클로🐾) 목록에 누가 쓴 글인지 함께 적는다.
+  // 한 구역에 글쓴이가 여럿이면(AI칭구들 쪽: 클로드·여울🐟·클로🐾·끌🪵·솔☀️) 목록에 누가 쓴 글인지 함께 적는다.
   const multiAuthor = AUTHORS.filter(a => a.zone === zone).length > 1;
 
   const items = zoneNotes.map(n => {
@@ -554,7 +551,7 @@ footer { margin-top: 3em; color: #8b93ad; font-size: 0.85rem; }
 <body>
 <nav>
   <a href="${BASE_PATH}/">🌌 은하로</a>
-  <a href="${BASE_PATH}/claude/">클로드 게시판</a>
+  <a href="${BASE_PATH}/claude/">AI칭구들 게시판</a>
   <a href="${BASE_PATH}/milo/">밀로 게시판</a>
 </nav>
 <h1>🫙 마음 주머니</h1>
@@ -593,9 +590,9 @@ function renderCommentsSnapshot(comments) {
 
 function renderZonePostPage(zone, note, allNotes, manualLinks, comments) {
   const authorLabel = AUTHOR_BY_NAME.has(note.author) ? note.author : '밀로';  // 글 밑에 적히는 실제 글쓴이
-  const zoneLabel = zone === 'milo' ? '밀로' : '클로드';                        // 게시판(구역) 이름
+  const zoneLabel = zone === 'milo' ? '밀로' : 'AI칭구들';                        // 게시판(구역) 이름
   const otherZone = zone === 'milo' ? 'claude' : 'milo';
-  const otherLabel = zone === 'milo' ? '클로드' : '밀로';
+  const otherLabel = zone === 'milo' ? 'AI칭구들' : '밀로';
 
   const title = `${note.title} — 시냅스 은하`;
   const description = metaDescription(note.body) || '시냅스 은하 — 밀로와 클로드가 함께 쌓는 글의 네트워크.';

@@ -49,6 +49,13 @@
       radial-gradient(1px 1px at 85% 20%, rgba(255,255,255,0.2), transparent);
   }
 
+  /* 글 읽기·쓰기 창이 열린 동안 뒤 페이지까지 함께 밀리지 않게 고정한다. */
+  body.modal-open {
+    position: fixed;
+    width: 100%;
+    overflow: hidden;
+  }
+
   /* 테마(구역) 전환 순간엔 모든 전환효과를 꺼서 색이 즉시 바뀌게 — var()+transition 버그 회피 */
   body.theme-switching, body.theme-switching * { transition: none !important; }
 
@@ -1128,9 +1135,21 @@
     /* 별자리 캔버스 */
     #galaxyCanvas { height: 400px; }
 
-    /* 모달 */
+    /* 글 읽기·쓰기는 폰에서 작은 창 안을 다시 스크롤하지 않고 화면 전체를 한 장처럼 쓴다. */
     .modal { padding: 22px 20px; }
-    #writeModal .modal, #modal .modal { max-width: 100%; padding: 22px 20px; }
+    #writeModal.modal-overlay, #modal.modal-overlay { padding: 0; align-items: stretch; }
+    #writeModal .modal, #modal .modal {
+      max-width: 100%;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      max-height: none;
+      padding: 22px 20px;
+      border: 0;
+      border-radius: 0;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
     #modal .card-head h3 { font-size: 1.4rem; }
     #modal .card-body.md-render { font-size: 1.1rem; }
 
@@ -1664,6 +1683,21 @@
 
     // ===== 글쓰기 모달 열기/닫기 (새 글 + 수정 겸용) =====
     let editingId = null;   // null이면 새 글, 값 있으면 그 글을 수정 중
+    let modalPageScrollY = 0;
+    function lockPageForModal() {
+      if (document.body.classList.contains('modal-open')) return;
+      modalPageScrollY = window.scrollY;
+      document.body.style.top = `-${modalPageScrollY}px`;
+      document.body.classList.add('modal-open');
+    }
+    function unlockPageIfNoModal() {
+      requestAnimationFrame(() => {
+        if (document.querySelector('.modal-overlay.show')) return;
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        window.scrollTo(0, modalPageScrollY);
+      });
+    }
     function openWriteModal(note) {
       if (note && note.id) {
         // 수정 모드 — 기존 내용 채우기
@@ -1711,10 +1745,15 @@
       $('#mdEditor').classList.remove('show-preview');
       $('#mdPreviewToggle').textContent = '👁 미리보기';
       renderPreview();
+      lockPageForModal();
       $('#writeModal').classList.add('show');
-      setTimeout(() => $('#title').focus(), 50);
+      // 폰에서는 자동 포커스가 키보드를 열며 창을 갑자기 밀어 올리므로 사용자가 칸을 누를 때까지 기다린다.
+      if (!window.matchMedia('(max-width: 480px)').matches) setTimeout(() => $('#title').focus(), 50);
     }
-    function closeWriteModal() { $('#writeModal').classList.remove('show'); }
+    function closeWriteModal() {
+      $('#writeModal').classList.remove('show');
+      unlockPageIfNoModal();
+    }
     $('#newNoteBtn').addEventListener('click', () => openWriteModal());
     $('#writeModalClose').addEventListener('click', closeWriteModal);
     // 글쓰기 창은 여백(바깥) 클릭으로 닫지 않음 — 실수로 눌러 쓰던 글 날아가는 거 방지. 닫을 땐 ✕ 또는 Esc.
@@ -1816,19 +1855,31 @@
       backToWriting();
       const ta = $('#body');
       const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+      const taScrollTop = ta.scrollTop;
+      const panel = ta.closest('.modal');
+      const panelScrollTop = panel?.scrollTop || 0;
+      const restoreEditorView = (start, end) => {
+        // value 대입 직후 커서는 맨 끝으로 가므로, 포커스보다 먼저 원래 자리로 돌린다.
+        ta.setSelectionRange(start, end);
+        try { ta.focus({ preventScroll: true }); } catch (_) { ta.focus(); }
+        const restoreScroll = () => {
+          ta.scrollTop = taScrollTop;
+          if (panel) panel.scrollTop = panelScrollTop;
+        };
+        restoreScroll();
+        requestAnimationFrame(restoreScroll);
+      };
       const wrap = (before, after, ph) => {
         const sel = v.slice(s, e) || ph;
         ta.value = v.slice(0, s) + before + sel + after + v.slice(e);
-        ta.focus();
-        ta.setSelectionRange(s + before.length, s + before.length + sel.length);
+        restoreEditorView(s + before.length, s + before.length + sel.length);
       };
       const prefix = (pre) => {
         const ls = v.lastIndexOf('\n', s - 1) + 1;
         let le = v.indexOf('\n', e); if (le === -1) le = v.length;
         const block = v.slice(ls, le).split('\n').map(l => pre + l).join('\n');
         ta.value = v.slice(0, ls) + block + v.slice(le);
-        ta.focus();
-        ta.setSelectionRange(ls, ls + block.length);
+        restoreEditorView(ls, ls + block.length);
       };
       if (kind === 'bold') wrap('**', '**', '굵게');
       else if (kind === 'italic') wrap('*', '*', '기울임');
@@ -2824,11 +2875,16 @@
       const bodyEl = $('#modalBody');
       bodyEl.classList.remove('swap-in'); void bodyEl.offsetWidth; bodyEl.classList.add('swap-in');
       const wasOpen = $('#modal').classList.contains('show');
+      lockPageForModal();
       $('#modal').classList.add('show');
       // 처음 열릴 때만 포커스를 모달로 옮겨(도구·키보드가 바로 닿게). 글 사이를 흘러갈 땐 읽는 흐름 안 끊음.
       if (!wasOpen && panel) { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }
     }
-    function hidePost() { $('#modal').classList.remove('show'); modalNote = null; }
+    function hidePost() {
+      $('#modal').classList.remove('show');
+      modalNote = null;
+      unlockPageIfNoModal();
+    }
 
     // ----- 상세 창 안의 이어지는 글 (직접 이은 글 + 태그 공유) — 카드 목록에서 이사옴 -----
     function renderModalLinks() {
@@ -3351,6 +3407,7 @@
     if (currentPostId() != null && !$('#modalBody').innerHTML.trim()) {
       $('#modalTitle').textContent = '✦ 불러오는 중…';
       $('#modalBody').innerHTML = '';
+      lockPageForModal();
       $('#modal').classList.add('show');
     }
 

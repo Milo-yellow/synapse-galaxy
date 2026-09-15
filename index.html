@@ -49,12 +49,11 @@
       radial-gradient(1px 1px at 85% 20%, rgba(255,255,255,0.2), transparent);
   }
 
-  /* 글 읽기·쓰기 창이 열린 동안 뒤 페이지까지 함께 밀리지 않게 고정한다. */
-  body.modal-open {
-    position: fixed;
-    width: 100%;
-    overflow: hidden;
-  }
+  /* 글 읽기·쓰기는 팝업이 아니라 한 장짜리 페이지로 전환한다. */
+  body.page-post .container,
+  body.page-write .container,
+  body.page-post .site-footer,
+  body.page-write .site-footer { display: none; }
 
   /* 테마(구역) 전환 순간엔 모든 전환효과를 꺼서 색이 즉시 바뀌게 — var()+transition 버그 회피 */
   body.theme-switching, body.theme-switching * { transition: none !important; }
@@ -921,6 +920,44 @@
     padding: 24px;
   }
   .modal-overlay.show { display: flex; animation: fade 0.2s; }
+  /* 상세·작성 화면만은 모달 껍데기를 재사용하되 문서 흐름 안의 독립 페이지처럼 보인다. */
+  #modal.modal-overlay,
+  #writeModal.modal-overlay {
+    position: static;
+    inset: auto;
+    min-height: calc(100vh - 90px);
+    padding: 28px 20px 72px;
+    background: transparent;
+    backdrop-filter: none;
+    align-items: flex-start;
+  }
+  #modal.modal-overlay.show,
+  #writeModal.modal-overlay.show { display: block; animation: none; }
+  #modal .modal,
+  #writeModal .modal {
+    margin: 0 auto;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  #modal .modal { background: transparent; }
+  #writeModal.modal-overlay { background: #FFFFFB; }
+  #writeModal .modal { background: transparent; }
+  #modal .modal-close,
+  #writeModal .modal-close {
+    position: static;
+    width: auto;
+    height: auto;
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 22px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
   /* 이어지는 글로 넘어갈 때 본문이 살짝 떠오르며 바뀌어 — 닫고 다시 여는 느낌 없이 자연스럽게 */
   @keyframes swapIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
   #modalBody.swap-in { animation: swapIn 0.22s ease; }
@@ -1135,20 +1172,19 @@
     /* 별자리 캔버스 */
     #galaxyCanvas { height: 400px; }
 
-    /* 글 읽기·쓰기는 폰에서 작은 창 안을 다시 스크롤하지 않고 화면 전체를 한 장처럼 쓴다. */
+    /* 글 읽기·쓰기 페이지는 폰에서도 브라우저 문서 하나만 스크롤한다. */
     .modal { padding: 22px 20px; }
-    #writeModal.modal-overlay, #modal.modal-overlay { padding: 0; align-items: stretch; }
+    #writeModal.modal-overlay, #modal.modal-overlay { padding: 16px 0 56px; }
     #writeModal .modal, #modal .modal {
       max-width: 100%;
       width: 100%;
-      height: 100vh;
-      height: 100dvh;
+      height: auto;
+      min-height: 0;
       max-height: none;
       padding: 22px 20px;
       border: 0;
       border-radius: 0;
-      overscroll-behavior: contain;
-      -webkit-overflow-scrolling: touch;
+      overflow: visible;
     }
     #modal .card-head h3 { font-size: 1.4rem; }
     #modal .card-body.md-render { font-size: 1.1rem; }
@@ -1327,10 +1363,10 @@
     <button id="authLink" class="auth-link">✦ 들어가기</button>
   </footer>
 
-  <!-- 글쓰기 모달 -->
+  <!-- 글쓰기 페이지 -->
   <div id="writeModal" class="modal-overlay">
     <div class="modal">
-      <button id="writeModalClose" class="modal-close">✕</button>
+      <button id="writeModalClose" class="modal-close">← 게시판</button>
       <h3 id="writeModalTitle" class="pick-heading">✍️ 새 글 남기기</h3>
       <div class="pick-hint">작은 그릇에 큰 것을 담아보자.</div>
       <div class="post-url" id="writePostUrlRow" style="display:none;">
@@ -1393,10 +1429,10 @@
     </div>
   </div>
 
-  <!-- 글 상세 모달 -->
+  <!-- 글 상세 페이지 -->
   <div id="modal" class="modal-overlay">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
-      <button id="modalClose" class="modal-close">✕</button>
+    <div class="modal" aria-labelledby="modalTitle" tabindex="-1">
+      <button id="modalClose" class="modal-close">← 뒤로</button>
       <div class="card-head">
         <h3 id="modalTitle"></h3>
         <span id="modalAuthor" class="author-badge"></span>
@@ -1681,24 +1717,28 @@
       });
     });
 
-    // ===== 글쓰기 모달 열기/닫기 (새 글 + 수정 겸용) =====
+    // ===== 글 읽기·쓰기 페이지 전환 (새 글 + 수정 겸용) =====
     let editingId = null;   // null이면 새 글, 값 있으면 그 글을 수정 중
-    let modalPageScrollY = 0;
-    function lockPageForModal() {
-      if (document.body.classList.contains('modal-open')) return;
-      modalPageScrollY = window.scrollY;
-      document.body.style.top = `-${modalPageScrollY}px`;
-      document.body.classList.add('modal-open');
+    let pageMode = null;
+    let pageReturnScrollY = 0;
+    function enterPageMode(mode) {
+      if (!pageMode) pageReturnScrollY = window.scrollY;
+      pageMode = mode;
+      document.body.classList.toggle('page-post', mode === 'post');
+      document.body.classList.toggle('page-write', mode === 'write');
+      if (mode === 'post') $('#writeModal').classList.remove('show');
+      if (mode === 'write') $('#modal').classList.remove('show');
+      window.scrollTo(0, 0);
     }
-    function unlockPageIfNoModal() {
+    function leavePageMode() {
+      const y = pageReturnScrollY;
+      pageMode = null;
+      document.body.classList.remove('page-post', 'page-write');
       requestAnimationFrame(() => {
-        if (document.querySelector('.modal-overlay.show')) return;
-        document.body.classList.remove('modal-open');
-        document.body.style.top = '';
-        window.scrollTo(0, modalPageScrollY);
+        window.scrollTo(0, y);
       });
     }
-    function openWriteModal(note) {
+    function openWriteModal(note, pushHistory = true) {
       if (note && note.id) {
         // 수정 모드 — 기존 내용 채우기
         editingId = note.id;
@@ -1745,14 +1785,22 @@
       $('#mdEditor').classList.remove('show-preview');
       $('#mdPreviewToggle').textContent = '👁 미리보기';
       renderPreview();
-      lockPageForModal();
+      if (pushHistory) {
+        try { history.pushState({ write: true, editing: note?.id || null }, '', location.href); } catch (_) {}
+      }
+      $('#writeModalClose').textContent = note?.id ? '← 글로' : '← 게시판';
       $('#writeModal').classList.add('show');
+      enterPageMode('write');
       // 폰에서는 자동 포커스가 키보드를 열며 창을 갑자기 밀어 올리므로 사용자가 칸을 누를 때까지 기다린다.
       if (!window.matchMedia('(max-width: 480px)').matches) setTimeout(() => $('#title').focus(), 50);
     }
-    function closeWriteModal() {
+    function hideWritePage(restore = true) {
       $('#writeModal').classList.remove('show');
-      unlockPageIfNoModal();
+      if (restore && pageMode === 'write') leavePageMode();
+    }
+    function closeWriteModal() {
+      if (history.state && history.state.write) history.back();
+      else hideWritePage();
     }
     $('#newNoteBtn').addEventListener('click', () => openWriteModal());
     $('#writeModalClose').addEventListener('click', closeWriteModal);
@@ -2028,7 +2076,8 @@
         toast('은하에 남겼어 ✦', 'ok');
       }
 
-      // 폼 비우기 + 임시저장 정리 + 모달 닫고, 지금 보고 있는 화면 새로고침
+      // 폼 비우기 + 임시저장 정리 + 원래 화면(수정이면 상세, 새 글이면 목록)으로 복귀
+      const savedNote = data && data[0] ? data[0] : (isEdit ? notes.find(n => n.id === editingId) : null);
       $('#title').value = '';
       $('#body').value = '';
       $('#tags').value = '';
@@ -2036,7 +2085,15 @@
       updateDraftHint(null);
       renderPreview();
       editingId = null;
-      closeWriteModal();
+      if (isEdit && savedNote) {
+        if (history.state && history.state.write) history.back();
+        else {
+          try { history.replaceState({ post: savedNote.id }, '', postPath(savedNote.id)); } catch (_) {}
+          showPost(savedNote);
+        }
+      } else {
+        closeWriteModal();
+      }
       if ($('#view-list').classList.contains('active')) renderList();
       if ($('#view-galaxy').classList.contains('active')) renderGalaxy();
       if ($('#view-dive').classList.contains('active')) renderDive();
@@ -2849,7 +2906,7 @@
       resizeTimer = setTimeout(renderGalaxy, 120);
     });
 
-    // ===== 글 상세 모달 + 댓글 =====
+    // ===== 글 상세 페이지 + 댓글 =====
     let modalNote = null;
     let commentAuthor = '밀로';
 
@@ -2871,19 +2928,18 @@
       renderModalLinks();
       // 이어지는 글로 넘어올 때: 위에서부터 읽히게 스크롤 리셋 + 본문이 살짝 떠오르며 바뀜
       const panel = $('#modal .modal');
-      if (panel) panel.scrollTop = 0;
       const bodyEl = $('#modalBody');
       bodyEl.classList.remove('swap-in'); void bodyEl.offsetWidth; bodyEl.classList.add('swap-in');
-      const wasOpen = $('#modal').classList.contains('show');
-      lockPageForModal();
+      const wasOpen = pageMode === 'post';
       $('#modal').classList.add('show');
-      // 처음 열릴 때만 포커스를 모달로 옮겨(도구·키보드가 바로 닿게). 글 사이를 흘러갈 땐 읽는 흐름 안 끊음.
+      enterPageMode('post');
+      // 처음 열릴 때만 포커스를 상세 페이지로 옮겨(도구·키보드가 바로 닿게). 글 사이를 흘러갈 땐 읽는 흐름 안 끊음.
       if (!wasOpen && panel) { try { panel.focus({ preventScroll: true }); } catch (_) { panel.focus(); } }
     }
-    function hidePost() {
+    function hidePost(restore = true) {
       $('#modal').classList.remove('show');
       modalNote = null;
-      unlockPageIfNoModal();
+      if (restore && pageMode === 'post') leavePageMode();
     }
 
     // ----- 상세 창 안의 이어지는 글 (직접 이은 글 + 태그 공유) — 카드 목록에서 이사옴 -----
@@ -2939,7 +2995,6 @@
     $('#modalEditBtn').addEventListener('click', () => {
       if (!modalNote) return;
       const n = modalNote;
-      closeModal();
       openWriteModal(n);
     });
     $('#modalLinkBtn').addEventListener('click', () => {
@@ -3032,8 +3087,12 @@
       }
     }
     $('#modalClose').addEventListener('click', closeModal);
-    $('#modal').addEventListener('click', ev => { if (ev.target.id === 'modal') closeModal(); });
-    window.addEventListener('keydown', ev => { if (ev.key === 'Escape') { closeModal(); closeLinkPicker(); closeWriteModal(); closeAuthModal(); } });
+    window.addEventListener('keydown', ev => {
+      if (ev.key !== 'Escape') return;
+      if (pageMode === 'write') closeWriteModal();
+      else if (pageMode === 'post') closeModal();
+      else { closeLinkPicker(); closeAuthModal(); }
+    });
 
     // ===== 모달 키 이벤트 가두기 (body/window 로 전파 방지 + Tab 포커스 트랩) =====
     // 모달 안 textarea 에서 '.' 같은 특수문자를 칠 때, 그 키 이벤트가 바깥으로
@@ -3056,8 +3115,6 @@
         else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
       });
     }
-    setupModalKeyTrap('writeModal', closeWriteModal);
-    setupModalKeyTrap('modal', closeModal);
     setupModalKeyTrap('linkModal', closeLinkPicker);
 
     // ===== 라우팅: /post/:id =====
@@ -3091,12 +3148,19 @@
 
     // 뒤로/앞으로 가기 → 주소에 맞춰 글을 열거나 닫음
     window.addEventListener('popstate', () => {
+      if (history.state && history.state.write) {
+        const edit = history.state.editing != null ? findNote(history.state.editing) : null;
+        openWriteModal(edit, false);
+        return;
+      }
       const id = currentPostId();
       if (id != null) {
         const n = findNote(id);
         if (n) showPost(n); else hidePost();
       } else {
-        hidePost();
+        hideWritePage(false);
+        hidePost(false);
+        leavePageMode();
       }
     });
 
@@ -3400,15 +3464,15 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'list'));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-list'));
 
-    // /post/:id 로 바로 들어왔으면, 데이터 불러오는 동안 메인(별자리)이 깜빡이지 않게
-    // 모달을 먼저 덮어둔다. (아래에서 글로 채우거나, 없으면 닫음)
+    // /post/:id 로 바로 들어왔으면, 데이터 불러오는 동안 게시판이 깜빡이지 않게
+    // 상세 페이지를 먼저 연다. (아래에서 글로 채우거나, 없으면 닫음)
     // 단, 빌드 시점에 미리 그 글 내용을 채워둔 페이지(크롤러/공유 미리보기용)라면
     // 이미 #modalBody 에 내용이 있으므로 "불러오는 중" 으로 덮어쓰지 않는다 — 안 그러면 잠깐 깜빡인다.
     if (currentPostId() != null && !$('#modalBody').innerHTML.trim()) {
       $('#modalTitle').textContent = '✦ 불러오는 중…';
       $('#modalBody').innerHTML = '';
-      lockPageForModal();
       $('#modal').classList.add('show');
+      enterPageMode('post');
     }
 
     // 로그인 상태 복원 + 변화 감지 (로그인/로그아웃 때 화면 버튼 갱신)
